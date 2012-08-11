@@ -376,6 +376,7 @@ int musb_platform_set_mode(struct musb *musb, u8 musb_mode)
 	devctl |= MUSB_DEVCTL_SESSION;
 	musb_writeb(musb->mregs, MUSB_DEVCTL, devctl);
 
+	otg_put_transceiver(musb->xceiv);
 	return 0;
 }
 
@@ -600,6 +601,7 @@ int musb_platform_exit(struct musb *musb)
 		otg_unregister_notifier(musb->xceiv, &musb->nb);
 	}
 	wake_lock_destroy(&plat->musb_lock);
+    del_timer_sync(&musb_idle_timer);	
 	musb_platform_suspend(musb);
 	if (cpu_is_omap44xx()) {
 		iounmap(ctrl_base);
