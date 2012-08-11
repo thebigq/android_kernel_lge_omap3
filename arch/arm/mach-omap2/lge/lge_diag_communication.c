@@ -174,6 +174,21 @@ static int lge_diag_ioctl(struct inode *inode, struct file *filp,
 					update_diagcmd_state(diagpdev,"ICD_SETORIENTATIONLOCK", ctrl_buf.state); 
 					break;
 
+				case ICD_GETUSBDEBUGSTATUSSTATUS_REQ_IOCTL:
+					update_diagcmd_state(diagpdev,"ICD_GETUSBDEBUGSTATUS", ctrl_buf.state); 
+					break;
+					
+				case ICD_SETUSBDEBUGSTATUSSTATUS_REQ_IOCTL:
+					update_diagcmd_state(diagpdev,"ICD_SETUSBDEBUGSTATUS", ctrl_buf.state); 
+					break;
+					
+				case ICD_GETSCREENLOCKSTATUS_REQ_IOCTL:
+					update_diagcmd_state(diagpdev,"ICD_GETSCREENLOCKSTATUS", ctrl_buf.state); 
+					break;
+					
+				case ICD_SETSCREENLOCKSTATUS_REQ_IOCTL:
+					update_diagcmd_state(diagpdev,"ICD_SETSCREENLOCKSTATUS", ctrl_buf.state); 
+					break;
 			}
 
 		break;

@@ -1473,7 +1473,15 @@ static int omapvid_process_frame(struct omap_vout_device *vout)
 
 	vout->next_frm = list_entry(vout->dma_queue.next,
 			struct videobuf_buffer, queue);
+#if 0 /* WIPRO - 2nd solution vidioc_streamon panic */
 	list_del(&vout->next_frm->queue);
+#else
+	if (!list_empty(&vout->next_frm->queue)) {
+		printk("[%s] before delete q %p, p %p, n %p empty %d\n",__FUNCTION__, &vout->next_frm->queue, vout->next_frm->queue.prev, vout->next_frm->queue.next, list_empty(&vout->next_frm->queue));
+		list_del(&vout->next_frm->queue);
+		INIT_LIST_HEAD(&vout->next_frm->queue);
+	}
+#endif
 
 	vout->next_frm->state = VIDEOBUF_ACTIVE;
 
@@ -3260,7 +3268,11 @@ static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 	int ret = 0, j;
 	u32 addr = 0, mask = 0;
 	u32 uv_addr = 0;
+#if 0 /* WIPRO - 2nd solution vidioc_streamon panic */
 	struct omap_vout_device *vout = fh;
+#else
+	struct omap_vout_device *vout = (struct omap_vout_device *)fh;
+#endif
 	struct videobuf_queue *q = &vout->vbq;
 	struct omapvideo_info *ovid = &vout->vid_info;
 #ifdef CONFIG_PM
@@ -3294,7 +3306,16 @@ static int vidioc_streamon(struct file *file, void *fh, enum v4l2_buf_type i)
 	vout->next_frm = vout->cur_frm = list_entry(vout->dma_queue.next,
 			struct videobuf_buffer, queue);
 	/* Remove buffer from the buffer queue */
+#if 0 /* WIPRO - 2nd solution vidioc_streamon panic */
 	list_del(&vout->cur_frm->queue);
+#else
+	if (!list_empty(&vout->cur_frm->queue)) {
+		printk("[%s] before delete q %p, p %p, n %p empty %d\n",__FUNCTION__, &vout->cur_frm->queue, vout->cur_frm->queue.prev, vout->cur_frm->queue.next, list_empty(&vout->cur_frm->queue));
+		list_del(&vout->cur_frm->queue);
+		INIT_LIST_HEAD(&vout->cur_frm->queue);
+	}
+#endif
+
 	/* Mark state of the current frame to active */
 	vout->cur_frm->state = VIDEOBUF_ACTIVE;
 	/* Initialize field_id and started member */
@@ -3387,7 +3408,11 @@ static int vidioc_streamoff(struct file *file, void *fh, enum v4l2_buf_type i)
 {
 	u32 mask = 0;
 	int ret = 0, j;
+#if 0 /* WIPRO - 2nd solution vidioc_streamon panic */
 	struct omap_vout_device *vout = fh;
+#else
+	struct omap_vout_device *vout = (struct omap_vout_device *)fh;
+#endif
 	struct omapvideo_info *ovid = &vout->vid_info;
 #ifdef CONFIG_PM
 	struct vout_platform_data *pdata =

@@ -23,6 +23,12 @@
 #include <linux/init.h>
 #include <linux/nmi.h>
 #include <linux/dmi.h>
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-09-27, */ 
+#if 1
+#include <linux/console.h>
+extern int console_suspended;
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-09-27 */
 
 int panic_on_oops;
 static unsigned long tainted_mask;
@@ -109,6 +115,14 @@ NORET_TYPE void panic(const char * fmt, ...)
 
 	kmsg_dump(KMSG_DUMP_PANIC);
 
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-09-27, */ 
+#if 1
+	if( console_suspended ) {
+		resume_console();
+	}
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-09-27 */
+
 	/*
 	 * Note smp_send_stop is the usual smp shutdown function, which
 	 * unfortunately means it may not be hardened to work in a panic
@@ -154,11 +168,17 @@ NORET_TYPE void panic(const char * fmt, ...)
 		disabled_wait(caller);
 	}
 #endif
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-08-14, */ 
+#if 0
 	local_irq_enable();
 	while (1) {
 		touch_softlockup_watchdog();
 		panic_blink_one_second();
 	}
+#else
+	emergency_restart();
+#endif
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-08-14 */
 }
 
 EXPORT_SYMBOL(panic);

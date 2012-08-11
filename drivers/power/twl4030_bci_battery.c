@@ -1985,6 +1985,7 @@ static char *charging_status_text[] = {
 };
 
 extern int power_off_charging_state;
+static int recharging_cnt = 0;
 static int set_battery_charging(struct twl4030_bci_device_info *di)
 {
 	int trickle_chg_max, trickle_chg_min, trickle_chg_timer_start;
@@ -2112,18 +2113,57 @@ static int set_battery_charging(struct twl4030_bci_device_info *di)
 			(CHARGING_NEED_TIME_CHECK_STATE == old_charging_status) ||
 			(RECHARGING_STATE == old_charging_status)) {
 		if((di->voltage_uV < trickle_chg_min)
-				|| (power_off_charging_state && (di->battery_capacity != 100) )) {	// active charger for recharging
+				|| (power_off_charging_state && (di->battery_capacity != 100) )
+				|| recharging_cnt ) {	// active charger for recharging
+			/* Force to Recharging State */
 			cur_charging_status = RECHARGING_STATE;
 			force_charging_done_cnt = 0;
+			if( recharging_cnt == 0 ) {
+				recharging_cnt = 40; /* 3*40 = 120min */
+			} else {
+				recharging_cnt--;
+			}
 		} else {
-			cur_charging_status = CHARGING_COMPLETE_STATE;
+			/* Check Recharging or Complete */
+			if ( old_charging_status == RECHARGING_STATE ) {
+				if( (di->voltage_uV >= complete_eoc_voltage)
+						|| (di->battery_capacity == 100) ) {
+					cur_charging_status = CHARGING_COMPLETE_STATE;
+				} else {
+					cur_charging_status = RECHARGING_STATE;
+				}
+			} else {
+				cur_charging_status = CHARGING_COMPLETE_STATE;
+			}
 		}
+	} else {
+		recharging_cnt = 0;
 	}
 
 #if 0
-		printk(KERN_INFO "[charging_msg] %s: Charging Status :(%s), Voltage %d, Endof Charging %d, soc %d\n"
+	{
+		static int dummy_count = 0;
+		if( cur_charging_status == CHARGING_COMPLETE_STATE ) {
+			dummy_count++;
+		} else {
+			dummy_count = 0;
+		}
+
+		if( dummy_count > 20 ) /* 3*20 = 60min*/ {
+		printk(KERN_INFO "[charging_msg] %s: >>>>> FORCE RECHARGING_STATE %d<<<<< Charging Status :(%s), Voltage %d, capacity %d, Endof Charging %d\n"
+				, __func__, dummy_count, charging_status_text[cur_charging_status]
+				, di->voltage_uV, di->battery_capacity , end_of_charge);
+			cur_charging_status = RECHARGING_STATE;
+			dummy_count = 0;
+			recharging_cnt = 40; /* 3*40 = 120min */
+		}
+	}
+#endif
+
+#if 0
+		printk(KERN_INFO "[charging_msg] %s: Charging Status :(%s), Voltage %d, Endof Charging %d, soc %d, recharging_cnt %d\n"
 				, __func__, charging_status_text[cur_charging_status]
-				, di->voltage_uV, end_of_charge, di->battery_capacity);
+				, di->voltage_uV, end_of_charge, di->battery_capacity, recharging_cnt);
 #endif
 
 	/* Charger IC or Battery FET Control */

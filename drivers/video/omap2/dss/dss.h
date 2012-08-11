@@ -31,7 +31,17 @@
 #endif
 
 #ifdef DEBUG
+
 extern unsigned int dss_debug;
+extern unsigned int dss_pcp_debug;
+extern unsigned int dss_ankit_debug;
+#define DSSDBG_PCP_PRINT(format, ...) \
+	if (dss_pcp_debug) \
+		printk(format,  ## __VA_ARGS__)
+#define DSSDBG_ANKIT_PRINT(format, ...) \
+	if (dss_ankit_debug) \
+		printk(format,  ## __VA_ARGS__)
+
 #ifdef DSS_SUBSYS_NAME
 #define DSSDBG(format, ...) \
 	if (dss_debug) \
@@ -62,6 +72,8 @@ extern unsigned int dss_debug;
 #else /* DEBUG */
 #define DSSDBG(format, ...)
 #define DSSDBGF(format, ...)
+#define DSSDBG_PCP_PRINT(format, ...)
+#define DSSDBG_ANKIT_PRINT(format, ...)
 #endif
 
 

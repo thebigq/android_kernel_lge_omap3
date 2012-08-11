@@ -336,6 +336,8 @@ enum {
 };
 /* 20110218 seven.kim@lge.com to contorl AAT2870 sleep/resume state machine [START] */
 
+int ignore_bl_on = 0;
+
 static int aat2870_write_reg(struct i2c_client *client, 
 			     unsigned char reg,
 			     unsigned char val)
@@ -349,6 +351,13 @@ static int aat2870_write_reg(struct i2c_client *client,
 	if (client == NULL) {
 		ERR("client is null\n");
 		return -ENXIO;
+	}
+
+	if( ignore_bl_on ) {
+		if( reg == AAT2870_REG0) {
+			printk("%s: ignore backlight control\n", __func__);
+			return 0;
+		}
 	}
 
 	if (reg ==AAT2870_REG14)
@@ -368,6 +377,19 @@ static int aat2870_write_reg(struct i2c_client *client,
 		status = -EIO;
 		ERR("fail to write(reg=0x%x,val=0x%x)\n", reg, val);
 	}
+
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-03, */ 
+#if 1
+	if( reg == LDO_ABCD_EN_REG ) {
+		/* If 1.8 Touch LDO ( LDO C ) is disabled.. */ 
+		if( 0x00 == ( val & 0x04 ) ) {
+			//printk("%s: delay 5mesc...\n", __func__);
+			mdelay(5);
+		}
+	}
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-03 */
+
 	//printk("success to write(reg=0x%x,val=0x%x)\n", reg, val);
 
 	return status;
@@ -401,12 +423,19 @@ static void aat2870_hw_reset(void)
 {
 	/*20110216 seven.kim@lge.com to adjust android sleep flow [START] */
 	if(aat2870_ldo_status() == 0) //all LDOs are off
-   {	
-	gpio_set_value(LCD_CP_EN, 0);
-	udelay(10);
-	gpio_set_value(LCD_CP_EN, 1);
-	udelay(80); /*optimised value for low-temperature condition*/
-}
+	{	
+		gpio_set_value(LCD_CP_EN, 0);
+		/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-03, */ 
+#if 0
+		udelay(10);
+#else
+		//printk("%s:2:  delay 5mesc...\n", __func__);
+		mdelay(5);
+#endif 
+		/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-03 */
+		gpio_set_value(LCD_CP_EN, 1);
+		udelay(80); /*optimised value for low-temperature condition*/
+	}
 	/*20110216 seven.kim@lge.com to adjust android sleep flow [END] */
 }
 
@@ -606,7 +635,14 @@ void hub_lcd_initialize(void)
 	check_bl_shutdown=0;
 #else /* 20110304 seven.kim@lge.com late_resume_lcd */
 	gpio_set_value(LCD_CP_EN, 0);
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-03, */ 
+#if 0
 	udelay(10);
+#else
+	//printk("%s:3:  delay 5mesc...\n", __func__);
+	mdelay(5);
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-03 */
 	gpio_set_value(LCD_CP_EN, 1);
 	udelay(80); /*optimised value for low-temperature condition*/
 	
@@ -637,6 +673,12 @@ void aat2870_shutdown(void)
     mdelay(1);   	
 	
     gpio_direction_output(LCD_CP_EN, 0);
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-03, */ 
+#if 1
+	//printk("%s:1:  delay 5mesc...\n", __func__);
+	mdelay(5);
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-03 */
    
 	check_bl_shutdown=1;
 }
@@ -697,6 +739,13 @@ static void aat2870_set_main_current_level(struct i2c_client *client, int level)
 	unsigned char val;
 	
 	DBG("level = %d\n", level);
+
+#if 0
+	if( ignore_bl_on ) {
+		printk("%s: ignore backlight control\n", __func__);
+		return ;
+	}
+#endif
 
 	dev = (struct aat2870_device *) i2c_get_clientdata(client);
 
@@ -902,6 +951,13 @@ static void aat2870_change_mode(struct i2c_client *client, int mode, int force)
 	struct lcd_ctrl_data *als_optimize_seq;//changhyun.han@lge.com, 20100119 ,added the optimized brightness mode
 
 	int i;
+
+#if 0
+	if( ignore_bl_on ) {
+		printk("%s: ignore backlight control\n", __func__);
+		return ;
+	}
+#endif
 
 	dev = (struct aat2870_device *) i2c_get_clientdata(client);
 
@@ -1373,6 +1429,12 @@ ssize_t aat2870_store_onoff_control(struct device *dev,
 	{
 		aat2870_write_reg(drvdata->client, LDO_ABCD_EN_REG, 0x00);
 		gpio_direction_output(LCD_CP_EN, 0);		
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-03, */ 
+#if 1
+			//printk("%s:4:  delay 5mesc...\n", __func__);
+			mdelay(5);
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-03 */
 	}
 	else if (value==3)//on after shutdown
 	{
@@ -1395,6 +1457,33 @@ DEVICE_ATTR(als_control, 0644, aat2870_show_als_control, aat2870_store_als_contr
 DEVICE_ATTR(alsgain_control, 0644, aat2870_show_alsgain_control, aat2870_store_alsgain_control);
 DEVICE_ATTR(onoff, 0644, NULL, aat2870_store_onoff_control);
 DEVICE_ATTR(als_option, 0644, aat2870_show_als_option, aat2870_store_als_option);//changhyun.han@lge.com, 20100119 ,added the optimized brightness mode
+
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-11-18, */ 
+#if 1
+ssize_t aat2870_show_ignore_bl(struct device *dev, 
+			 struct device_attribute *attr, 
+			 char *buf)
+{
+	return sprintf(buf, "%d\n", ignore_bl_on);
+}
+
+ssize_t aat2870_store_ignore_bl(struct device *dev, 
+			  struct device_attribute *attr, 
+			  const char *buf, 
+			  size_t count)
+{
+	if (!count) {
+		return -EINVAL;
+	}
+
+	ignore_bl_on = simple_strtol(buf, NULL, 10);
+	printk("%s: ignore_bl_on %d\n", __func__, ignore_bl_on);
+
+	return count;
+}
+DEVICE_ATTR(ignore_bl, 0644, aat2870_show_ignore_bl, aat2870_store_ignore_bl);//changhyun.han@lge.com, 20100119 ,added the optimized brightness mode
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-11-18 */
 
 static struct backlight_ops aat2870_bl_ops = {
 	.update_status	= aat2870_bl_set_intensity,
@@ -1419,6 +1508,7 @@ static int aat2870_remove(struct i2c_client *i2c_dev)
 	device_remove_file(dev->led->dev, &dev_attr_alsgain_control);
 	device_remove_file(dev->led->dev, &dev_attr_onoff);
 	device_remove_file(dev->led->dev, &dev_attr_als_option);//changhyun.han@lge.com, 20100119, added the optimized brightness mode
+	device_remove_file(dev->led->dev, &dev_attr_ignore_bl);
 
 	backlight_device_unregister(dev->bl_dev);
 	led_classdev_unregister(dev->led);
@@ -1709,6 +1799,7 @@ static int __init aat2870_probe(struct i2c_client *i2c_dev,
 		err = device_create_file(dev->led->dev, &dev_attr_alsgain_control);
 		err = device_create_file(dev->led->dev, &dev_attr_onoff);
 		err = device_create_file(dev->led->dev, &dev_attr_als_option);//changhyun.han@lge.com, 20100119 ,added the optimized brightness mode
+		err = device_create_file(dev->led->dev, &dev_attr_ignore_bl);
 	}
 
 	//aat2870_set_main_current_level(i2c_dev, DEFAULT_BRIGHTNESS); 

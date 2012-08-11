@@ -445,6 +445,13 @@ static int mmc_blk_issue_rq(struct mmc_queue *mq, struct request *req)
 			       req->rq_disk->disk_name, brq.data.error,
 			       (unsigned)blk_rq_pos(req),
 			       (unsigned)blk_rq_sectors(req), status);
+
+//20110921 yongman.kwon@lge.com [LS855] reset when mmcblk error is occured [START]
+			if(!strcmp(req->rq_disk->disk_name, "mmcblk0"))
+			{
+				panic("phone reset when mmcblk0 error is occured\n");		
+			}
+//20110921 yongman.kwon@lge.com [LS855] reset when mmcblk error is occured [END]
 		}
 
 		if (brq.stop.error) {

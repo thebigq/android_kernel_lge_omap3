@@ -101,7 +101,14 @@ EXPORT_SYMBOL_GPL(console_drivers);
  * path in the console code where we end up in places I want
  * locked without the console sempahore held
  */
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-09-27, */ 
+#if 0
 static int console_locked, console_suspended;
+#else 
+static int console_locked;
+int console_suspended;
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-09-27 */
 
 /*
  * logbuf_lock protects log_buf, log_start, log_end, con_start and logged_chars
@@ -851,9 +858,15 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 
 				t = cpu_clock(printk_cpu);
 				nanosec_rem = do_div(t, 1000000000);
+#if 1
 				tlen = sprintf(tbuf, "[%5lu.%06lu] ",
 						(unsigned long) t,
 						nanosec_rem / 1000);
+#else
+				tlen = sprintf(tbuf, "[%5lu.%06lu]-<%-7d:%-7d:%-10s> ",
+						(unsigned long) t,
+						nanosec_rem / 1000, task_tgid_nr(current), task_pid_nr(current), current->comm );
+#endif
 
 				for (tp = tbuf; tp < tbuf + tlen; tp++)
 					emit_log_char(*tp);

@@ -811,12 +811,14 @@ static int omap_dss_remove(struct platform_device *pdev)
 
 static void omap_dss_shutdown(struct platform_device *pdev)
 {
+	DSSDBG_ANKIT_PRINT("ANKIT::omap_dss_shutdown\n");
 	DSSDBG("shutdown\n");
 	dss_disable_all_devices();
 }
 
 static int omap_dss_suspend(struct platform_device *pdev, pm_message_t state)
 {
+	DSSDBG_ANKIT_PRINT("ANKIT::omap_dss_suspend\n");
 	DSSDBG("suspend %d\n", state.event);
 
 	return dss_suspend_all_devices();
@@ -824,6 +826,7 @@ static int omap_dss_suspend(struct platform_device *pdev, pm_message_t state)
 
 static int omap_dss_resume(struct platform_device *pdev)
 {
+	DSSDBG_ANKIT_PRINT("ANKIT::omap_dss_resume\n");
 	DSSDBG("resume\n");
 
 	return dss_resume_all_devices();
@@ -832,12 +835,14 @@ static int omap_dss_resume(struct platform_device *pdev)
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void dss_early_suspend(struct early_suspend *h)
 {
+	DSSDBG_ANKIT_PRINT("ANKIT::omap_dss_early_suspend\n");
 	DSSDBG("%s\n", __func__);
 	omap_dss_suspend(core.pdev, PMSG_SUSPEND);
 }
 
 static void dss_late_resume(struct early_suspend *h)
 {
+	DSSDBG_ANKIT_PRINT("ANKIT::omap_dss_late_resume\n");
 	DSSDBG("%s\n", __func__);
 	omap_dss_resume(core.pdev);
 }

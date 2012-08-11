@@ -1455,7 +1455,7 @@ int ispccdc_config(struct isp_ccdc_device *isp_ccdc,
 			isp_ccdc->lsc_defer_setup = 1;
 		else if (isp_ccdc->lsc_request_enable) {
 			ispccdc_setup_lsc(isp_ccdc, &isp->pipeline);
-			ispccdc_enable_lsc(isp_ccdc, 1);
+			//ispccdc_enable_lsc(isp_ccdc, 1); /* 20110729 dongyu.gwak@lge.com MMS LSC issue patch */ 
 		}
 	}
 

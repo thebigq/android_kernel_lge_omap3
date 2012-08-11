@@ -290,6 +290,10 @@ struct twl4030_usb {
 };
 
 
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [START]
+struct twl4030_usb *backuptwl;
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [END]
+
 /* internal define on top of container_of */
 #define xceiv_to_twl(x)		container_of((x), struct twl4030_usb, otg);
 
@@ -1069,6 +1073,11 @@ static int __devinit twl4030_usb_probe(struct platform_device *pdev)
 	//if (twl4030_usb_linkstat(twl) == USB_EVENT_NONE) {
 	//	regulator_disable(twl->usb3v1);
 	//}
+
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [START]
+	backuptwl = twl;
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [END]	
+
 
 	dev_info(&pdev->dev, "Initialized TWL4030 USB module\n");
 	return 0;

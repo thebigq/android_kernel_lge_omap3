@@ -34,6 +34,11 @@
 
 #include <plat/smartreflex.h>
 
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [START]
+#include <linux/usb/otg.h>
+#include "linux/regulator/driver.h"
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [END]
+
 static u8 twl4030_start_script_address = 0x2b;
 
 #define PWR_P1_SW_EVENTS	0x10
@@ -140,11 +145,59 @@ static u8 res_config_addrs[] = {
  * VDD2 while code is running.  WA is to disable the sleep script
  * before warm reset.
  */
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [START]
+struct regulator {
+	struct device *dev;
+	struct list_head list;
+	int uA_load;
+	int min_uV;
+	int max_uV;
+	char *supply_name;
+	struct device_attribute dev_attr;
+	struct regulator_dev *rdev;
+};
+
+struct twl4030_usb {
+	struct otg_transceiver	otg;
+	struct device		*dev;
+
+	/* TWL4030 internal USB regulator supplies */
+	struct regulator	*usb1v5;
+	struct regulator	*usb1v8;
+#if 0	/* LGE_CHANGE [HEAVEN: newcomet@lge.com] on 2009-11-27, for <USB interrupt BUG fix> */
+	struct regulator	*usb3v1;
+#endif /* CONFIG_MACH_LGE_HEAVEN */
+
+	/* for vbus reporting with irqs disabled */
+	spinlock_t		lock;
+
+	/* pin configuration */
+	enum twl4030_usb_mode	usb_mode;
+
+	int 		irq;
+	u8			linkstat;
+	u8			asleep;
+	bool			irq_enabled;
+};
+
+extern struct twl4030_usb *backuptwl;
+extern int regulator_disable(struct regulator *regulator);
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [END]
+
 static int twl4030_prepare_for_reboot(struct notifier_block *this,
 		unsigned long cmd, void *p)
 {
 	int err;
 
+
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [START]
+	printk("[%s]enter use_count : %d\n", __func__, backuptwl->usb1v8->rdev->use_count );
+
+	if(backuptwl->usb1v8->rdev->use_count > 0)
+		regulator_disable(backuptwl->usb1v8);
+//20110829 yongman.kwon@lge.com [LS855] reset USB1.8V LDO when phone reset [END]
+
+	
 	err = twl4030_remove_script(TWL4030_SLEEP_SCRIPT);
 	if (err)
 		pr_err("TWL4030: error trying to disable sleep script!\n");

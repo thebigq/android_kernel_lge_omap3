@@ -22,6 +22,11 @@
 #include <linux/max17043_fuelgauge.h>
 #include <linux/slab.h>
 #include <mach/gpio.h>
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-09-24, */ 
+#if 1
+#include <linux/reboot.h>
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-09-24 */
 
 // LGP970 (B-project) AP - Fuel gauge Version
 #if defined(CONFIG_MACH_LGE_HUB) || defined(CONFIG_MACH_LGE_SNIPER)
@@ -363,7 +368,13 @@ static int max17043_set_rcomp(int rcomp)
 		return -1;
 
 	rcomp &= 0xff;
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-09-26, */ 
+#if 0 /* mbk_temp */ 
 	reference->config = ((reference->config & 0x00ff) | (rcomp << 8));
+#else 
+	reference->config = ((reference->config & 0x007f) | (rcomp << 8));
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-09-26 */
 
 	max17043_write_config(reference->client);
 
@@ -383,7 +394,13 @@ static int max17043_set_athd(int level)
 	if(level == (reference->config & 0x1F))
 		return level;
 
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-09-26, */ 
+#if 0
 	reference->config = ((reference->config & 0xffe0) | level);
+#else 
+	reference->config = ((reference->config & 0xff60) | level);
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-09-26 */
 	max17043_write_config(reference->client);
 
 	return level;
@@ -611,10 +628,58 @@ int max17043_get_capacity(void)
 	return reference->capacity;
 }
 EXPORT_SYMBOL(max17043_get_capacity);
+
+int extreme_low_battery_cnt = 0;
+
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-09-25, */ 
+#if 1
+static int extremly_low_batt_check_start = 0;
+static struct delayed_work low_batt_check_workq;
+extern int power_off_charging_state;
+void low_batt_check_workq_func(void *data)
+{
+	cancel_delayed_work(&low_batt_check_workq);
+	extremly_low_batt_check_start = 1;
+	printk("%s: ===== Low Battery Check Start.. ===== \n", __func__);
+	return ;
+}
+void force_low_batt_check_start(void)
+{
+	cancel_delayed_work(&low_batt_check_workq);
+	schedule_work(&low_batt_check_workq);
+	return ;
+}
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-09-25 */
+
 int max17043_get_voltage(void)
 {
 	if(reference == NULL)	// if fuel gauge is not initialized,
 		return 4200;		// return Dummy Value
+
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-09-24, */ 
+#if 1
+	if( (extremly_low_batt_check_start == 1) && (!power_off_charging_state) ) {
+		if( reference->voltage < 3030 ) {
+			extreme_low_battery_cnt++;
+			printk("%s: Low battery %d mv, cout %d\n", __func__, reference->voltage, extreme_low_battery_cnt);
+		} else {
+			extreme_low_battery_cnt = 0;
+		}
+
+		if( extreme_low_battery_cnt > 1 ) {
+			printk("%s: ========================== Low Battery %d mv\n", __func__, reference->voltage);
+
+#if 0
+			charging_ic_deactive();
+			charging_ic_active_default();
+#endif
+			kernel_power_off();
+		}
+	}
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-09-24 */
+
 	return reference->voltage;
 }
 EXPORT_SYMBOL(max17043_get_voltage);
@@ -693,6 +758,9 @@ static int __devinit max17043_probe(struct i2c_client *client,
 	chip = kzalloc(sizeof(*chip), GFP_KERNEL);
 	if (!chip)
 		return -ENOMEM;
+
+	INIT_DELAYED_WORK(&low_batt_check_workq, low_batt_check_workq_func);
+	schedule_delayed_work(&low_batt_check_workq, 320*HZ);
 
 	ret = gpio_request(GAUGE_INT, "max17043_alert");
 	if (ret < 0) {

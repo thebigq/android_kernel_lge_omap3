@@ -137,7 +137,8 @@ void usb_composite_force_reset(struct usb_composite_dev *cdev)
 		spin_unlock_irqrestore(&cdev->lock, flags);
 
 		usb_gadget_disconnect(cdev->gadget);
-		msleep(10);
+		//msleep(10);
+		mdelay(20);
 		usb_gadget_connect(cdev->gadget);
 	} else {
 		spin_unlock_irqrestore(&cdev->lock, flags);

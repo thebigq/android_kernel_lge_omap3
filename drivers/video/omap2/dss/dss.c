@@ -152,6 +152,7 @@ unsigned long dss_get_cache_req_pck()
 int dss_mainclk_enable()
 {
 	int ret = 0;
+	DSSDBG_PCP_PRINT("%s: display_debug PCP in dss_mainclk_enable\n", __func__);
 
 	if (!dss.mainclk_state) {
 		if (cpu_is_omap44xx() || cpu_is_omap34xx())
@@ -164,9 +165,12 @@ int dss_mainclk_enable()
 			ret = pm_runtime_get_sync(&dss.pdev->dev);
 #endif
 
-		if (!ret)
+		if (!ret) {
 			dss.mainclk_state = true;
+			DSSDBG_PCP_PRINT("%s: display_debug PCP making dss.mainclk_state = true, ret %d\n", __func__, ret);
+		}
 	} else {
+		DSSDBG_PCP_PRINT("%s: display_debug PCP dss_opt_clock_enable failed , returning -EBUSY\n", __func__);
 		return -EBUSY;
 	}
 
@@ -175,12 +179,15 @@ int dss_mainclk_enable()
 
 void dss_mainclk_disable()
 {
+	DSSDBG_PCP_PRINT("%s: display_debug PCP in dss_mainclk_disable\n", __func__);
 	if (dss.mainclk_state) {
 		dss.mainclk_state = false;
 		pm_runtime_put_sync(&dss.pdev->dev);
 
-		if (cpu_is_omap44xx() || cpu_is_omap34xx())
+		if (cpu_is_omap44xx() || cpu_is_omap34xx()) {
+			DSSDBG_PCP_PRINT("%s: display_debug PCP calling dss_opt_clock_disable\n", __func__);
 			dss_opt_clock_disable();
+		}
 	}
 }
 

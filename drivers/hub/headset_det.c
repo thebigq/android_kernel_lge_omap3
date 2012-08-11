@@ -33,7 +33,7 @@ static int ip_dev_reg;
 headset_type_enum headset_type = HUB_NONE;
 
 extern void hub_headsetdet_bias(int bias);
- //20110618 minyoung1.kim@lge.com  -  call?? sleep ???î°¬À» ??, headset ?Î½? ???? ??Àº ???? ??Á¤. START
+ //20110618 minyoung1.kim@lge.com  -  call?? sleep ???î°¬; ??, headset ?Î½? ???? ??: ???? ??d. START
 static struct wake_lock headset_det_wake_lock;
 
 static struct delayed_work headset_workq;
@@ -123,9 +123,13 @@ static void insert_headset(void)
 	gpio_set_value(hi->gpio_mic_bias_en, 1);
 	msleep(100);
 
-	hub_headsetdet_bias(1); //micbias3 on
-	msleep(100);
-	
+//2011.08.25. jungsoo1221.lee - add the HW Rev Check, after 1.0 B'd, do not need micbias reg. setting 
+	if(system_rev < 11) //rev 1.0 
+	{
+		H2W_DBG("insert_headset : HW Version is not 1.0 \n");
+		hub_headsetdet_bias(1); //micbias3 on
+		msleep(100);
+	}
 	jpole = gpio_get_value(hi->gpio_jpole);
 	
 	if(jpole)
@@ -140,8 +144,12 @@ static void insert_headset(void)
 		enable_irq(hi->irq_btn);
         	set_irq_wake(hi->irq_btn, 1);
 		local_irq_restore(irq_flags);
-		hub_headsetdet_bias(0); //micbias3 off
-		
+//2011.08.25. jungsoo1221.lee - add the HW Rev Check, after 1.0 B'd, do not need micbias reg. setting 
+		if(system_rev < 11) //rev 1.0 
+		{		
+			H2W_DBG("insert_headset_no_mic : HW Version is not 1.0 \n");
+			hub_headsetdet_bias(0); //micbias3 off
+		}	
 		hi->debounce_time = ktime_set(0, 20000000);  /* 20 ms */
 		hi->unplug_debounce_time = ktime_set(0, 100000000);  // add eklee 
    	}
@@ -182,8 +190,12 @@ static void remove_headset(void)
 		button_released();
 
 	gpio_set_value(hi->gpio_mic_bias_en, 0);
-	hub_headsetdet_bias(0); //micbias3 off
-	
+//2011.08.25. jungsoo1221.lee - add the HW Rev Check, after 1.0 B'd, do not need micbias reg. setting 
+	if(system_rev < 11) //rev 1.0 
+	{		
+		H2W_DBG("remove_headset : HW Version is not 1.0 \n");
+		hub_headsetdet_bias(0); //micbias3 off
+	}
 //	hi->debounce_time = ktime_set(0, 500000000);  /* VS760 100 ms -> 300ms */
 hi->debounce_time = ktime_set(0, 400000000);  /* VS760 100 ms -> 300ms */ //JSLEE_TEST_MIC
 

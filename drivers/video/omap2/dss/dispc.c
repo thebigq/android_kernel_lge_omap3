@@ -2735,7 +2735,6 @@ static void _dispc_set_vdma_attrs(enum omap_plane plane, bool enable)
 	REG_FLD_MOD(dispc_reg_att[plane], enable ? 1 : 0, 20, 20);
 } //Deepak fix for OMAPS00238807
 
-
 static void _dispc_set_scaling(enum omap_plane plane,
 		u16 orig_width, u16 orig_height,
 		u16 out_width, u16 out_height,
@@ -2753,6 +2752,7 @@ static void _dispc_set_scaling(enum omap_plane plane,
 
 	if (scale_x|| vdma) {	//Deepak fix for OMAPS00238807
 		fir_hinc = (1024 * (orig_width-1)) / (out_width-1);
+		//fir_hinc = (1024 * (orig_width)) / (out_width); // TI Source L25 Inc 4.4
 		if (fir_hinc > 4095)
 			fir_hinc = 4095;
 		hfir = get_scaling_coef(orig_width, out_width, 0, 0, 0);
@@ -2763,6 +2763,7 @@ static void _dispc_set_scaling(enum omap_plane plane,
 
 	if (scale_y|| vdma) {	//Deepak fix for OMAPS00238807
 		fir_vinc = (1024 * (orig_height-1)) / (out_height);
+		//fir_vinc = (1024 * (orig_height)) / (out_height); // TI Source L35 Inc 4.4
 		if (fir_vinc > 4095)
 			fir_vinc = 4095;
 		vfir = get_scaling_coef(orig_height, out_height, 0, 0,
@@ -2789,6 +2790,7 @@ static void _dispc_set_scaling(enum omap_plane plane,
 
 	l |= three_taps ? 0 : (1 << 21);
 	l |= vdma ? (1 << 22) : 0;	//Deepak fix for OMAPS00238807
+
 	dispc_write_reg(dispc_reg_att[plane], l);
 
 	/*
@@ -2887,6 +2889,7 @@ static void _dispc_set_scaling_uv(enum omap_plane plane,
 	/* _dispc_set_vid_accu2_0(plane, accuh, accu0);
 	   _dispc_set_vid_accu2_1(plane, accuh, accu1); */
 }
+
 static void _dispc_set_rotation_attrs(enum omap_plane plane, u8 rotation,
 		//bool mirroring, enum omap_color_mode color_mode)
 		bool mirroring, enum omap_color_mode color_mode, bool vdma) //Deepak fix for OMAPS00238807
@@ -3404,19 +3407,6 @@ static unsigned long calc_fclk(enum omap_channel channel, u16 width,
 	/* FIXME venc pclk? */
 	return dispc_pclk_rate(channel) * vf * hf;
 }
- //Deepak fix for OMAPS00238807
-static int dispc_is_vdma_req(u8 rotation, enum omap_color_mode color_mode)
-{
-	/* TODO: VDMA support for RGB16 mode */
-	if (cpu_is_omap3630())
-		if ((color_mode == OMAP_DSS_COLOR_YUV2) ||
-			(color_mode == OMAP_DSS_COLOR_UYVY))
-			if ((rotation == OMAP_DSS_ROT_90 ||
-				rotation == OMAP_DSS_ROT_270))
- 				return true;
- 	return false;
-}
-
 
 void dispc_set_channel_out(enum omap_plane plane, enum omap_channel channel_out)
 {
@@ -3436,6 +3426,7 @@ int dispc_scaling_decision(u16 width, u16 height,
 {
 	int maxdownscale = cpu_is_omap24xx() ? 2 : 4;
 	int bpp = color_mode_to_bpp(color_mode);
+	DSSDBG_PCP_PRINT("%s, PCP in dispc_scaling_decision function\n", __func__);
 
 	/*
 	 * For now only whole byte formats on OMAP4 can be predecimated.
@@ -3504,8 +3495,10 @@ int dispc_scaling_decision(u16 width, u16 height,
 	y = min_y_decim;
 	while (1) {
 		if (x < min_x_decim || x > max_x_decim ||
-			y < min_y_decim || y > max_y_decim)
+			y < min_y_decim || y > max_y_decim) {
+			DSSDBG_PCP_PRINT("%s, PCP : going to error loop from line no 3509 if (x < min_x_decim || x > max_x_decim || y < min_y_decim || y > max_y_decim) condition x=%d, min_x_decim=%d,max_x_decim=%d,y=%d,min_y_decim=%d,max_y_decim=%d\n", __func__, x, min_x_decim, max_x_decim, y, min_y_decim, max_y_decim);			
 			goto loop;
+		}
 
 		in_width = DIV_ROUND_UP(width, x);
 		in_height = DIV_ROUND_UP(height, y);
@@ -3513,12 +3506,16 @@ int dispc_scaling_decision(u16 width, u16 height,
 		if (in_width == out_width && in_height == out_height)
 			break;
 
-		if (!can_scale)
+		if (!can_scale) {
+			DSSDBG_PCP_PRINT("%s, PCP : going to error loop from line no 3520 if (!can_scale), can_scale = %d\n", __func__, can_scale);
 			goto loop;
+		}
 
 		if (out_width < in_width / maxdownscale ||
-			out_height < in_height / maxdownscale)
+			out_height < in_height / maxdownscale) {
+			DSSDBG_PCP_PRINT("%s, PCP : going to error loop from line no 3526 if (out_width < in_width / maxdownscale || out_height < in_height / maxdownscale) condition out_width=%d, in_width=%d,maxdownscale=%d,out_height=%d,in_height=%d,maxdownscale\n", __func__, out_width,in_width,maxdownscale,out_height,in_height,maxdownscale);
 			goto loop;
+		}
 
 #if 0		
 		/* Must use 3-tap filter */
@@ -3539,6 +3536,7 @@ int dispc_scaling_decision(u16 width, u16 height,
 	*three_tap = width > 1024;
 
 #endif
+	DSSDBG_PCP_PRINT("%s, PCP line no 3549 three_tap = %d , width= %d\n", __func__, *three_tap, width);
 		/*
 		 * Predecimation on OMAP4 still fetches the whole lines
 		 * :TODO: How does it affect the required clock speed?
@@ -3549,14 +3547,17 @@ int dispc_scaling_decision(u16 width, u16 height,
 		fclk5 = *three_tap ? 0 :
 			calc_fclk_five_taps(channel, in_width, in_height,
 					out_width, out_height, color_mode);
+
 		enable_clocks(0);
 
 		DSSDBG("%d*%d,%d*%d->%d,%d requires %lu(3T), %lu(5T) Hz\n",
 			in_width, x, in_height, y, out_width, out_height,
 			fclk, fclk5);
 
+		DSSDBG_PCP_PRINT("%s,  PCP line no 3565 in_width= %d, x=%d,in_height=%d, y=%d, out_width=%d,out_height=%d, requires fclk= %lu(3T),fclk5= %lu(5T) Hz\n", __func__, in_width, x, in_height, y, out_width, out_height, fclk, fclk5 );
 		/* Use 3-tap if 5-tap clock requirement is too high */
 		*three_tap |= fclk5 > fclk_max;
+		DSSDBG_PCP_PRINT("%s, PCP new value of three_tap = %d, fclk5 = %lu(3T) and fclk_max = %lu(3T)\n", __func__, *three_tap, fclk5, fclk_max);
 
 #if 1//LG_CHANGE lee.hyunji@lge.com 20110520 DSI error with HTML5 media player proxy in portrait mode
 			/* for now we always use 5-tap unless 3-tap is required */
@@ -3564,14 +3565,20 @@ int dispc_scaling_decision(u16 width, u16 height,
 				fclk = fclk5;
 #endif
 		/* OMAP2/3 has a scaler size limitation */
-		if (!cpu_is_omap44xx() && in_width > (1024 << *three_tap))
+		if (!cpu_is_omap44xx() && in_width > (1024 << *three_tap)) {
+			DSSDBG_PCP_PRINT("%s, PCP going to error loop from line number 3577 if (!cpu_is_omap44xx() && in_width > (1024 << *three_tap)) condition cpu_is_omap44xx()=%d, in_width=%d, *three_tap=%d\n", __func__, cpu_is_omap44xx(), in_width, *three_tap);
 			goto loop;
+		}
 
 		DSSDBG("required fclk rate = %lu Hz\n", fclk);
 		DSSDBG("current fclk rate = %lu Hz\n", fclk_max);
+		DSSDBG_PCP_PRINT("%s, PCP line no 3582 required fclk rate = %lu Hz\n",__func__, fclk);
+		DSSDBG_PCP_PRINT("%s, PCP line no 3583 current fclk rate = %lu Hz\n",__func__, fclk_max);
 
-		if (fclk > fclk_max)
+		if (fclk > fclk_max) {
+			DSSDBG_PCP_PRINT("%s, PCP going to error loop from line no 3587 if (fclk > fclk_max)\n", __func__);
 			goto loop;
+		}
 		break;
 
 loop:
@@ -3600,6 +3607,23 @@ loop:
 	return 0;
 }
 
+//Deepak fix for OMAPS00238807
+static int dispc_is_vdma_req(u8 rotation, enum omap_color_mode color_mode)
+{
+	/* TODO: VDMA support for RGB16 mode */
+	if (cpu_is_omap3630()){
+		if ((color_mode == OMAP_DSS_COLOR_YUV2) ||
+			(color_mode == OMAP_DSS_COLOR_UYVY)){
+
+			if ((rotation == OMAP_DSS_ROT_90 ||
+				rotation == OMAP_DSS_ROT_270)){
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 static int _dispc_setup_plane(enum omap_plane plane,
 		u32 paddr, u16 screen_width,
 		u16 pos_x, u16 pos_y,
@@ -3622,8 +3646,7 @@ static int _dispc_setup_plane(enum omap_plane plane,
 	s32 pix_inc;
 	u16 frame_height = height;
 	unsigned int field_offset = 0;
-
-	bool vdma; //Deepak fix for OMAPS00238807
+	bool vdma = false; //Deepak fix for OMAPS00238807
 
 	if (paddr == 0)
 		return -EINVAL;
@@ -3955,9 +3978,10 @@ static int _dispc_setup_plane(enum omap_plane plane,
 static void _dispc_enable_plane(enum omap_plane plane, bool enable)
 {
 	REG_FLD_MOD(dispc_reg_att[plane], enable ? 1 : 0, 0, 0);
-	if (!enable && cpu_is_omap44xx()) { /* clear out resizer related bits */
+	if (!enable) { /* clear out resizer related bits */
 		REG_FLD_MOD(dispc_reg_att[plane], 0x00, 6, 5);
 		REG_FLD_MOD(dispc_reg_att[plane], 0x00, 21, 21);
+		REG_FLD_MOD(dispc_reg_att[plane], 0x00, 22, 22);
 	}
 }
 
@@ -5062,6 +5086,7 @@ static void _omap_dispc_set_irqs(void)
 	int i;
 	struct omap_dispc_isr_data *isr_data;
 
+	DSSDBG_ANKIT_PRINT("ANKIT::_omap_dispc_set_irqs\n");
 	mask = dispc.irq_error_mask;
 
 	for (i = 0; i < DISPC_MAX_NR_ISRS; i++) {
@@ -5278,12 +5303,14 @@ int omapdss_manager_reset(struct omap_overlay_manager *mgr)
 		return -EINVAL;
 
 	enable = mgr->device->state == OMAP_DSS_DISPLAY_ACTIVE;
-	if (mgr->device->driver->reset)
+	if (mgr->device->driver->reset) {
 		mgr->device->driver->reset(mgr->device,
 						OMAP_DSS_RESET_OFF);
-	else
+		DSSDBG_ANKIT_PRINT("ANKIT::omapdss_manager_reset::device driver reset\n");
+	} else {
+		DSSDBG_ANKIT_PRINT("ANKIT::omapdss_manager_reset::omapdss_display_enable\n");
 		omapdss_display_disable(mgr->device);
-
+	}
 	for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 		struct omap_overlay *ovl;
 		ovl = omap_dss_get_overlay(i);
@@ -5639,6 +5666,7 @@ int dispc_init(struct platform_device *pdev)
 		dispc_mem = platform_get_resource(pdev, IORESOURCE_MEM, 1);
 	else
 		dispc_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+
 	dispc_base = dispc.base = ioremap(dispc_mem->start,
 		resource_size(dispc_mem));
 	if (!dispc.base) {
@@ -5774,7 +5802,7 @@ int dispc_setup_wb(struct writeback_cache_data *wb)
 	s32 row_inc = 0;
 	s32 pix_inc;
 	int truncate = 0;
-	bool vdma;	//Deepak fix for OMAPS00238807
+	bool vdma = false; //Deepak fix for OMAPS00238807
 
 	DSSDBG("dispc_setup_wb\n");
 	DSSDBG("Maxds = %d\n", maxdownscale);
@@ -5966,6 +5994,10 @@ int dispc_setup_wb(struct writeback_cache_data *wb)
 	default:
 		;
 	}
+
+	vdma = dispc_is_vdma_req(rotation, color_mode);
+	if (vdma)
+		three_taps = false;
 
 	DSSDBG("WB ch_width %d ch_height %d out_ch_width %d out_ch_height %d",
 		ch_width, ch_height, out_ch_width, out_ch_height);

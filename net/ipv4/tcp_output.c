@@ -244,9 +244,13 @@ void tcp_select_initial_window(int __space, __u32 mss,
 			*rcv_wnd = init_cwnd * mss;
 	}
 
+// kimdaeyong sujung...2011.9.9...2011.9.9 이원철S 가 스프린트에 확인해 준 메일로부터...아래 메일 내용...
+//결론 부터 말씀 드리면 45Kbytes 설정은 1X feature 폰에서만 적용하라고 합니다.
+//EVDO and upper(LTE & WIMax) 는 WIFI , 3G에 상관 없이 OEM이 최적의 값을 찾아서 Default TCP window size와 Scaling bit를 설정을 하면 된다고 합니다.
+//관련 내용은 새로 release 될 Spec 에 명시 되겠지만, 그 전이라도 Sprint 향(Including Boost and Virgin) 모든 신규 출시 폰과 MR에 적용 될 수 있게 처리해 주십시오
 //#ifdef LG_DATA_SPRINT_TCP_PARAMETER_OPTIMIZE
-	(*rcv_wscale) = 0;
-	*rcv_wnd = 1024 * 45;
+//	(*rcv_wscale) = 0;
+//	*rcv_wnd = 1024 * 45;
 //#endif
 
 	/* Set the clamp no higher than max representable value */

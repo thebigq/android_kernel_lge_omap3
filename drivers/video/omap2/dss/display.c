@@ -409,6 +409,7 @@ static ssize_t display_device_connected_show(struct device *dev,
 	return snprintf(buf, PAGE_SIZE, "%d\n", device_connected);
 }
 
+extern int ignore_bl_on;
 /* LGE_CHANGE_S, bae.cheolhwan@lge.com, 2011-05-10. Modify a hidden reset fuction. */
 /* 20100601 jugwan.eom@lge.com for hidden reset [START_LGE] */
 //extern void dsi_wake_up_update_thread(void);
@@ -420,12 +421,15 @@ static ssize_t boot_completed_store(struct device *dev,
 {
 	long completed = simple_strtol(buf, NULL, 0);
 	printk("[BCH][%s][%s()] (L:%d) completed=%d \n",  __FILE__, __func__, __LINE__, completed);
-	if (completed)
+	if (completed) {
 #if 1
 		reset_status = 0 /*RESET_NORMAL*/;
 #else
 		dsi_wake_up_update_thread();
 #endif
+		ignore_bl_on = 0;
+	}
+
 	return size;
 }
 static ssize_t boot_completed_show(struct device *dev,
@@ -662,6 +666,7 @@ void dss_init_device(struct platform_device *pdev,
 #ifdef CONFIG_OMAP2_DSS_DPI
 	case OMAP_DISPLAY_TYPE_DPI:
 		r = dpi_init_display(dssdev);
+		DSSDBG_ANKIT_PRINT("ANKIT::dss_init_device::value of r_dpi_init_display:%d\n",r);
 		break;
 #endif
 #ifdef CONFIG_OMAP2_DSS_RFBI
@@ -738,6 +743,7 @@ static int dss_suspend_device(struct device *dev, void *data)
 		return 0;
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_ACTIVE) {
+		DSSDBG_ANKIT_PRINT("ANKIT::dss_suspend_device::OMAP_DSS_DISPLAY_ACTIVE\n");
 		dssdev->activate_after_resume = false;
 		return 0;
 	}
@@ -766,6 +772,7 @@ int dss_suspend_all_devices(void)
 	if (r) {
 		/* resume all displays that were suspended */
 		dss_resume_all_devices();
+		DSSDBG_ANKIT_PRINT("ANKIT::dss_suspend_all_devices::dss_resume_all_devices\n");
 		return r;
 	}
 
@@ -867,8 +874,10 @@ static int dss_disable_device(struct device *dev, void *data)
 {
 	struct omap_dss_device *dssdev = to_dss_device(dev);
 
-	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED)
+	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED) {
+		DSSDBG_ANKIT_PRINT("ANKIT::dss_disable_device::DISPLAY_DISABLED\n");
 		dssdev->driver->disable(dssdev);
+	}
 
 	return 0;
 }

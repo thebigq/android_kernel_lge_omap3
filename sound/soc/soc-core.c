@@ -1421,8 +1421,12 @@ static int soc_resume(struct device *dev)
 	if(incallnosuspend == 1)
 	{
 		incallnosuspend = 0;
-		printk("incallsuspend -> soc-resume......return\n");
+		printk("incallsuspend -> soc-resume......\n");
+	#if 0 //20110831 jungsoo1221.lee - Mono BT connected -> In Call -> Bluetooth Off -> Enter the Sleep Mode -> Call End -> keytone or Ringtone Distored
 		return 0;
+	#else
+	//	return 0;   //20110520 junday.lee anyway soc_resume because sound noise(call sleep and resume when camcoder mode)
+	#endif
 	}
 #endif
 	

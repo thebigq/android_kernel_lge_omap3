@@ -383,9 +383,19 @@ static int get_mic_switch(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_val
 {
 	return 0;
 }
+
+//[LG_FW_AUDIO_VD Start]20110805 jungsoo1221.lee - After Cam Rec, "Speak Now" is not played with BT
+#if 0 
 static const char *mic_switch_texts[]={ "MIC1", "MIC2" };
 static const struct soc_enum mic_switch_soc_enum =
 	SOC_ENUM_SINGLE_EXT(2, mic_switch_texts);
+#else
+static const char *mic_switch_texts[]={ "MIC1", "MIC2","MIC_BT" };
+static const struct soc_enum mic_switch_soc_enum =
+SOC_ENUM_SINGLE_EXT(3, mic_switch_texts);
+#endif
+//[LG_FW_AUDIO_VD Start]20110805 jungsoo1221.lee - After Cam Rec, "Speak Now" is not played with BT
+
 static const struct snd_kcontrol_new mic_switch_control =
 	SOC_ENUM_EXT("Route", mic_switch_soc_enum, get_mic_switch, set_mic_switch);
 //jongik2.kim 20101220 add mic2 control [end]

@@ -48,6 +48,11 @@ struct workqueue_struct *suspend_work_queue;
 struct wake_lock main_wake_lock;
 suspend_state_t requested_suspend_state = PM_SUSPEND_MEM;
 static struct wake_lock unknown_wakeup;
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-11, */ 
+#if 0
+static struct wake_lock AudioOutLockTemp_wake_lock;
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-11 */
 
 #ifdef CONFIG_WAKELOCK_STAT
 static struct wake_lock deleted_wake_locks;
@@ -303,9 +308,14 @@ static void suspend(struct work_struct *work)
 	if (current_event_num == entry_event_num) {
 		if (debug_mask & DEBUG_SUSPEND)
 			pr_info("suspend: pm_suspend returned with no event\n");
+#if 0
 		wake_lock_timeout(&unknown_wakeup, HZ / 2);
+#endif
 	}
 
+#if 1
+	wake_lock_timeout(&unknown_wakeup, HZ * 3 / 2);
+#endif
 }
 static DECLARE_WORK(suspend_work, suspend);
 
@@ -500,6 +510,16 @@ void wake_unlock(struct wake_lock *lock)
 {
 	int type;
 	unsigned long irqflags;
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-11, */ 
+#if 0
+	if( !strncmp( lock->name, "AudioOutLock", 12 ) ) {
+		printk("%s: temp wake lock for 1sec, %s \n", __func__, lock->name);
+		if(!wake_lock_active(&AudioOutLockTemp_wake_lock)) {
+			wake_lock_timeout(&AudioOutLockTemp_wake_lock, HZ);
+		}
+	}
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-11 */
 	spin_lock_irqsave(&list_lock, irqflags);
 	type = lock->flags & WAKE_LOCK_TYPE_MASK;
 #ifdef CONFIG_WAKELOCK_STAT
@@ -575,6 +595,11 @@ static int __init wakelocks_init(void)
 	wake_lock_init(&main_wake_lock, WAKE_LOCK_SUSPEND, "main");
 	wake_lock(&main_wake_lock);
 	wake_lock_init(&unknown_wakeup, WAKE_LOCK_SUSPEND, "unknown_wakeups");
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-11, */ 
+#if 0
+	wake_lock_init(&AudioOutLockTemp_wake_lock, WAKE_LOCK_SUSPEND, "TempAudioOutLock");
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-11 */
 
 	ret = platform_device_register(&power_device);
 	if (ret) {
@@ -604,6 +629,11 @@ err_suspend_work_queue:
 err_platform_driver_register:
 	platform_device_unregister(&power_device);
 err_platform_device_register:
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-11, */ 
+#if 0
+	wake_lock_destroy(&AudioOutLockTemp_wake_lock);
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-11 */
 	wake_lock_destroy(&unknown_wakeup);
 	wake_lock_destroy(&main_wake_lock);
 #ifdef CONFIG_WAKELOCK_STAT
@@ -622,6 +652,11 @@ static void  __exit wakelocks_exit(void)
 	platform_device_unregister(&power_device);
 	wake_lock_destroy(&unknown_wakeup);
 	wake_lock_destroy(&main_wake_lock);
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-10-11, */ 
+#if 0
+	wake_lock_destroy(&AudioOutLockTemp_wake_lock);
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-10-11 */
 #ifdef CONFIG_WAKELOCK_STAT
 	wake_lock_destroy(&deleted_wake_locks);
 #endif

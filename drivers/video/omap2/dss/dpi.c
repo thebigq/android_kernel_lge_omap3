@@ -215,8 +215,11 @@ int omapdss_dpi_display_enable(struct omap_dss_device *dssdev)
 
 	if (cpu_is_omap34xx() && !cpu_is_omap3630()) {
 		r = regulator_enable(dpi.vdds_dsi_reg);
-		if (r)
+		DSSDBG_ANKIT_PRINT("ANKIT::omapdss_dpi_display_enable::value of r_regulator_enable:%d\n", r);
+		if (r) {
+			DSSDBG_ANKIT_PRINT("%s: Error value of r_regulator_enable:%d\n", __func__, r);
 			goto err0;
+		}
 	}
 
 	/* turn on clock(s) */
@@ -267,6 +270,7 @@ EXPORT_SYMBOL(omapdss_dpi_display_enable);
 
 void omapdss_dpi_display_disable(struct omap_dss_device *dssdev)
 {
+	DSSDBG_ANKIT_PRINT("ANKIT::omapdss_dpi_display_disable\n");
 	if (dssdev->manager)
 		dssdev->manager->disable(dssdev->manager);
 
@@ -370,6 +374,7 @@ EXPORT_SYMBOL(dpi_check_timings);
 int dpi_init_display(struct omap_dss_device *dssdev)
 {
 	DSSDBG("init_display\n");
+	DSSDBG_ANKIT_PRINT("ANKIT::dpi_init_display\n");
 
 	return 0;
 }

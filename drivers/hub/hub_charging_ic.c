@@ -348,7 +348,9 @@ void set_external_power_detect(int on)
 {
 	printk("[charging_msg] %s, ext_pwr status %d \n", __FUNCTION__, on);
 
+#ifdef CONFIG_LGE_CHARGE_CONTROL_BATTERY_FET
 	lge_battery_fet_onoff(1);
+#endif
 	external_power_on = !!on;
 	return ;
 }
@@ -396,6 +398,7 @@ ssize_t charging_ic_show_poc(struct device *dev,
 }
 
 int power_off_charging_state = 0;
+extern void force_low_batt_check_start(void);
 ssize_t charging_ic_store_poc(struct device *dev,
 			  struct device_attribute *attr,
 			  const char *buf,
@@ -406,6 +409,7 @@ ssize_t charging_ic_store_poc(struct device *dev,
 			wake_unlock(&power_off_charging_lock);
 		printk("[Battery] Power Off Charging - End!\n");
 		power_off_charging_state = 0;
+		force_low_batt_check_start();
 	} else if(buf[0] == '1') {
 		if(!wake_lock_active(&power_off_charging_lock))
 			wake_lock(&power_off_charging_lock);

@@ -18,6 +18,7 @@
 #include <linux/wakelock.h>
 #include <linux/jiffies.h>
 #include <linux/interrupt.h>
+#include <linux/workqueue.h>
 
 #ifndef mschoi //fota
 #include "../mux.h"
@@ -76,12 +77,32 @@ void usif_switch_ctrl(TYPE_USIF_MODE mode);
 
 #if 1 /* LG_RIL_RECOVERY_MODE_D2 */
 #define MDM_RIL_INIT_CHEC 172
+static struct delayed_work cp_boot_check_workq;
 int cp_ril_init = 0;
+int fota_prgress = 0;
 static irqreturn_t mdm_ril_init_check_handler(int irq, void *data)
 {
+	cancel_delayed_work(&cp_boot_check_workq);
 	cp_ril_init = 1;
 	printk("%s: ****************CP ril ready(cp_ril_init)\n", __func__);
 	return IRQ_HANDLED;
+}
+
+extern void modem_reset_restart_to_ril_recovery();
+void cp_boot_check_workq_func(void *data)
+{
+	cancel_delayed_work(&cp_boot_check_workq);
+	
+	if( 1 == fota_prgress ) {
+		printk("%s: ***** Skip CP No Boot Check, Fota Progress.. \n");
+		return ;
+	}
+
+	if ( cp_ril_init == 0 ) {
+		printk("%s: ********************* CP No Boot Restart \n", __func__);
+		modem_reset_restart_to_ril_recovery();
+	}
+	return ;
 }
 #endif
 
@@ -372,6 +393,7 @@ static ssize_t modem_fota_gpio_ctrl_store(struct device *dev,
 
 	fota_gpio_ctrl = simple_strtol(buf, NULL, 10);
 
+	fota_prgress = 1;
 
 	//gpio_set_value(39, !!fota_gpio_ctrl);
 	gpio_set_value(MODEM_FOTA_CTRL_GPIO, !!fota_gpio_ctrl);
@@ -475,6 +497,55 @@ DEVICE_ATTR(ril_fail, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
 	    modem_ril_fail_show, modem_ril_fail_store);
 #endif 
 
+#if 1
+extern unsigned int dss_debug;
+unsigned int dss_pcp_debug = 0;
+unsigned int dss_ankit_debug = 0;
+int temp_dss_debug = 0;
+static ssize_t modem_dss_debug_store(struct device *dev,
+				     struct device_attribute *attr,
+				     const char *buf, size_t count)
+{
+	if (count == 0)
+		return 0;
+
+	temp_dss_debug = simple_strtol(buf, NULL, 10);
+
+	/* dss_debug */
+	if( temp_dss_debug == 11 ) {
+		dss_debug = 1;
+	} else if ( temp_dss_debug == 10 ) {
+		dss_debug = 0;
+
+	/* pcp_debug */
+	} else if ( temp_dss_debug == 22 ) {
+		dss_pcp_debug = 1;
+	} else if ( temp_dss_debug == 20 ) {
+		dss_pcp_debug = 0;
+
+	/* ankit_debug */
+	} else if ( temp_dss_debug == 33 ) {
+		dss_ankit_debug = 1;
+	} else if ( temp_dss_debug == 30 ) {
+		dss_ankit_debug = 0;
+
+	/* All Debug */
+	} else if ( temp_dss_debug == 77 ) {
+		dss_debug = 1;
+		dss_pcp_debug = 1;
+		dss_ankit_debug = 1;
+	} else if ( temp_dss_debug == 70 ) {
+		dss_debug = 0;
+		dss_pcp_debug = 0;
+		dss_ankit_debug = 0;
+	}
+
+	return count;
+}
+DEVICE_ATTR(dss_debug, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP,
+	    NULL, modem_dss_debug_store);
+#endif 
+
 #if 1 /* LG_RIL_RECOVERY_MODE_D2 */
 static ssize_t cp_ril_init_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -507,6 +578,9 @@ static int modem_ctrl_probe(struct platform_device *pdev)
 #if DEBUG
         dump_gpio_status(__FUNCTION__, 1);
 #endif /* DEBUG */
+
+	INIT_DELAYED_WORK(&cp_boot_check_workq, cp_boot_check_workq_func);
+
 	/* request gpio */
 #if FEATURE_MODEM_POWER_CTRL
 	ret = gpio_request(MODEM_POWER_CTRL_GPIO, "modem power switch");
@@ -648,6 +722,15 @@ static int modem_ctrl_probe(struct platform_device *pdev)
 #endif 
 /* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-08-03 */
 
+#if 1
+	ret = device_create_file(&pdev->dev, &dev_attr_dss_debug);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "failed to create sysfs dss_debug\n");
+		ret = -ENOMEM;
+		goto err_sysfs_dss_debug;
+	}
+#endif 
+
 #if 1 /* LG_RIL_RECOVERY_MODE_D2 */
 	ret = device_create_file(&pdev->dev, &dev_attr_cp_ril_init);
 	if (ret < 0) {
@@ -681,8 +764,12 @@ static int modem_ctrl_probe(struct platform_device *pdev)
 		goto err_request_wakeup_irq_failed;
 	}
 
+	cancel_delayed_work(&cp_boot_check_workq);
+	schedule_delayed_work(&cp_boot_check_workq, 15*HZ);
+
 	if( gpio_get_value(MDM_RIL_INIT_CHEC) ) {
 		printk("%s: CP Ril initilized(cp_ril_init)\n", __func__);
+		cancel_delayed_work(&cp_boot_check_workq);
 		cp_ril_init = 1;
 	}
 #endif 
@@ -705,6 +792,10 @@ err_gpio_request_ril_init_check:
 err_sysfs_cp_ril_init:
 #endif 
 
+#if 1
+	device_remove_file(&pdev->dev, &dev_attr_dss_debug);
+err_sysfs_dss_debug:
+#endif
 /* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-08-03, */ 
 #if 1 /* upgrade ril recovery */
 	device_remove_file(&pdev->dev, &dev_attr_ril_fail);
@@ -743,6 +834,7 @@ static int modem_ctrl_remove(struct platform_device *pdev)
 	device_remove_file(&pdev->dev, &dev_attr_ril_fail);
 #endif 
 /* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-08-03 */
+	device_remove_file(&pdev->dev, &dev_attr_dss_debug);
 
 	gpio_free(MODEM_POWER_CTRL_GPIO);
 	gpio_free(MODEM_RESET_CTRL_GPIO);

@@ -117,6 +117,12 @@
 #ifdef CONFIG_USB_SUPPORT_LGE_ANDROID_AUTORUN
 #include <linux/switch.h>
 #endif
+#ifdef CONFIG_LGE_USB_GADGET_SUPPORT_FACTORY_USB
+#include <linux/lge_extpwr_type.h>
+extern int android_switch_composition(u16 pid);
+extern const u16 lg_factory_pid;
+extern u16 product_id;
+#endif /*CONFIG_LGE_USB_GADGET_SUPPORT_FACTORY_USB*/
 
 #define TA_WAIT_BCON(m) max_t(int, (m)->a_wait_bcon, OTG_TIME_A_WAIT_BCON)
 
@@ -2013,7 +2019,21 @@ static void musb_irq_work(struct work_struct *data)
 		old_state = musb->xceiv->state;
 		sysfs_notify(&musb->controller->kobj, NULL, "mode");
 	}
+#ifdef CONFIG_LGE_USB_GADGET_SUPPORT_FACTORY_USB
+	unsigned long	flags;
+	int cable_type;
 
+	cable_type = get_ext_pwr_type();//LG_NORMAL_USB_CABLE;		
+	if(cable_type==LT_CABLE_56K)
+	{
+		if(product_id != lg_factory_pid)
+		{
+		//	spin_lock_irqsave(&musb->lock, flags);
+			android_switch_composition(lg_factory_pid);
+		//	spin_unlock_irqrestore(&musb->lock, flags);
+		}
+	}
+#endif
 	if (musb->xceiv->event == USB_EVENT_VBUS) {
 		/* Hold a L3 constarint for better throughput */
 		if (plat->set_min_bus_tput)

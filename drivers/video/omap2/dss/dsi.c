@@ -3268,6 +3268,7 @@ static void dsi_update_screen_dispc(struct omap_dss_device *dssdev,
 	dsi_perf_mark_start(ix);
 
 /* LGE_UPDATE_S - to prevent DSI framedone timeout. */	
+	DSSDBG_ANKIT_PRINT("%s: Start Frmadoen Timeout check\n", __func__);
 #if defined(CONFIG_MACH_LGE_OMAP3)
 	r = queue_delayed_work(p_dsi->workqueue, &p_dsi->framedone_timeout_work,
 			msecs_to_jiffies(1000));
@@ -3349,6 +3350,7 @@ static void dsi_handle_framedone(enum omap_dsi_index ix, int error)
 			error = -EIO;
 	}
 
+	DSSDBG_ANKIT_PRINT("%s\n", __func__);
 	p_dsi->framedone_callback(error, p_dsi->framedone_data);
 
 	if (!error)
@@ -3385,6 +3387,7 @@ static void dsi2_framedone_timeout_work_callback(struct work_struct *work)
 
 static void dsi_framedone_bta_callback(enum omap_dsi_index ix)
 {
+	DSSDBG_ANKIT_PRINT("%s\n", __func__);
 	dsi_handle_framedone(ix, 0);
 
 #ifdef CONFIG_OMAP2_DSS_FAKE_VSYNC
@@ -3502,6 +3505,7 @@ static void omap_dsi_delayed_update(struct work_struct *work)
 	if (!dssdev->sched_update.waiting)
 		dssdev->driver->update(dssdev, nu->x, nu->y, nu->w, nu->h);
 	dssdev->sched_update.scheduled = false;
+	DSSDBG_ANKIT_PRINT("%s: \n", __func__);
 }
 
 static DEFINE_MUTEX(sched_lock);
@@ -3522,6 +3526,7 @@ int omap_dsi_sched_update_lock(struct omap_dss_device *dssdev,
 
 	/* if update is in progress schedule another update */
 	if (sched_only || nu->scheduled || dsi_bus_is_locked(ix)) {
+		DSSDBG_ANKIT_PRINT(" %s: sched_only %d, scheduled %d, dsi_bus_is_locked %d\n", __func__, sched_only, nu->scheduled, dsi_bus_is_locked(ix));
 		/* using nu->scheduled as it gets updated within same locks */
 		if (nu->scheduled) {
 			/* update next update region */
@@ -3531,12 +3536,18 @@ int omap_dsi_sched_update_lock(struct omap_dss_device *dssdev,
 			nu->y = min(y, nu->y);
 		} else {
 			INIT_WORK(&nu->work, omap_dsi_delayed_update);
+#if 0 // XXX bking.moon@lge.com for fix black screen
 			queue_work(p_dsi->update_queue, &nu->work);
+#endif
 			nu->scheduled = true;
 			nu->x = x;
 			nu->y = y;
 			nu->w = w;
 			nu->h = h;
+#if 1 // XXX bking.moon@lge.com for fix black screen
+
+			queue_work(p_dsi->update_queue, &nu->work);
+#endif
 		}
 
 		if (sched_only)
@@ -3595,7 +3606,6 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 	struct dsi_struct *p_dsi;
 	enum omap_dsi_index ix;
 
-
 	if (lcd_off_boot) return 0;
 // rsy add end
 
@@ -3621,10 +3631,12 @@ int omap_dsi_update(struct omap_dss_device *dssdev,
 			p_dsi->update_region.h = h;
 			p_dsi->update_region.device = dssdev;
 
+			DSSDBG_ANKIT_PRINT("%s: dssdev->manager->caps 0x%x\n", __func__, dssdev->manager->caps);
 			dsi_update_screen_dispc(dssdev, x, y, w, h);
 		} else {
 			dsi_update_screen_l4(dssdev, x, y, w, h);
 			dsi_perf_show(ix, "L4");
+			DSSDBG_ANKIT_PRINT("%s: \n", __func__);
 			callback(0, data);
 		}
 	}
@@ -3639,6 +3651,7 @@ static int dsi_display_init_dispc(struct omap_dss_device *dssdev)
 {
 	int r;
 
+	DSSDBG_ANKIT_PRINT("ANKIT::dsi_display_init_dispc\n");
 	r = omap_dispc_register_isr((dssdev->channel == OMAP_DSS_CHANNEL_LCD) ?
 		dsi_framedone_irq_callback : dsi2_framedone_irq_callback,
 		NULL, (dssdev->channel == OMAP_DSS_CHANNEL_LCD) ?
@@ -3755,12 +3768,16 @@ static int dsi_display_init_dsi(struct omap_dss_device *dssdev)
 	_dsi_print_reset_status(ix);
 
 	r = dsi_pll_init(dssdev, true, true);
-	if (r)
+	if (r) {
+		DSSDBG_ANKIT_PRINT("ANKIT::value of r_dsi_pll_init:%d\n",r);
 		goto err0;
+	}
 
 	r = dsi_configure_dsi_clocks(dssdev);
-	if (r)
+	if (r) {
+		DSSDBG_ANKIT_PRINT("ANKIT::Value of r_dsi_configure_dsi_clocks:%d\n",r);
 		goto err1;
+	}
 
 	if (cpu_is_omap44xx()) {
 		dss_select_dispc_clk_source(ix, (ix == DSI1) ?
@@ -3940,6 +3957,27 @@ err0:
 }
 EXPORT_SYMBOL(omapdss_dsi_display_enable);
 
+#if 1 /* TI CSR OMAPS00250914 */ 
+static void dsi_clear_irq(struct omap_dss_device *dssdev) {
+	u32 l = 0xFFFFFFFF;
+	enum omap_dsi_index ix;
+	int i;
+
+	ix = (dssdev->channel == OMAP_DSS_CHANNEL_LCD) ? DSI1 : DSI2;
+
+	dsi_write_reg(ix, DSI_IRQSTATUS, l);
+	dsi_write_reg(ix, DSI_IRQENABLE, 0);
+
+	dsi_write_reg(ix, DSI_COMPLEXIO_IRQ_STATUS, l);
+	dsi_write_reg(ix, DSI_COMPLEXIO_IRQ_ENABLE, 0);
+
+	for (i = 0; i < 4; ++i) {
+		dsi_write_reg(ix, DSI_VC_IRQSTATUS(i), l);
+		dsi_write_reg(ix, DSI_VC_IRQENABLE(i), 0);
+	}
+}
+#endif 
+
 void omapdss_dsi_display_disable(struct omap_dss_device *dssdev)
 {
 	struct dsi_struct *p_dsi;
@@ -3957,6 +3995,10 @@ void omapdss_dsi_display_disable(struct omap_dss_device *dssdev)
 	WARN_ON(!dsi_bus_is_locked(ix));
 
 	mutex_lock(&p_dsi->lock);
+
+#if 1 /* TI CSR OMAPS00250914 */ 
+	dsi_clear_irq(dssdev);
+#endif
 
 	dsi_display_uninit_dispc(dssdev);
 

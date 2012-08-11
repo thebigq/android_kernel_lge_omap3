@@ -168,6 +168,7 @@ static void late_resume(struct work_struct *work)
 	list_for_each_entry_reverse(pos, &early_suspend_handlers, link)
 		if (pos->resume != NULL)
 			pos->resume(pos);
+	pr_info("late_resume: done\n");
 	if (debug_mask & DEBUG_SUSPEND)
 		pr_info("late_resume: done\n");
 abort:
@@ -196,11 +197,15 @@ void request_suspend_state(suspend_state_t new_state)
 	}
 	if (!old_sleep && new_state != PM_SUSPEND_ON) {
 		state |= SUSPEND_REQUESTED;
-		queue_work(suspend_work_queue, &early_suspend_work);
+		if( 0 == queue_work(suspend_work_queue, &early_suspend_work) ) {
+			printk("%s: XXXXX suspend_work_queue(early_suspend) already queued\n", __func__);
+		}
 	} else if (old_sleep && new_state == PM_SUSPEND_ON) {
 		state &= ~SUSPEND_REQUESTED;
 		wake_lock(&main_wake_lock);
-		queue_work(suspend_work_queue, &late_resume_work);
+		if( 0 == queue_work(suspend_work_queue, &late_resume_work) ) {
+			printk("%s: XXXXX suspend_work_queue(late_resume) already queued\n", __func__);
+		}
 	}
 	requested_suspend_state = new_state;
 	spin_unlock_irqrestore(&state_lock, irqflags);

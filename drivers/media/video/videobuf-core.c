@@ -211,7 +211,15 @@ void videobuf_queue_cancel(struct videobuf_queue *q)
 		if (NULL == q->bufs[i])
 			continue;
 		if (q->bufs[i]->state == VIDEOBUF_QUEUED) {
+#if 0 /* WIPRO - 2nd solution vidioc_streamon panic */
 			list_del(&q->bufs[i]->queue);
+#else
+			if (!list_empty(&q->bufs[i]->queue)) {
+				printk("[%s] before delete q %p, p %p, n %p empty %d\n",__FUNCTION__, &q->bufs[i]->queue, q->bufs[i]->queue.prev, q->bufs[i]->queue.next, list_empty(&q->bufs[i]->queue));
+				list_del(&q->bufs[i]->queue);
+				INIT_LIST_HEAD(&q->bufs[i]->queue);
+			}
+#endif
 			q->bufs[i]->state = VIDEOBUF_ERROR;
 			wake_up_all(&q->bufs[i]->done);
 		}
@@ -223,6 +231,8 @@ void videobuf_queue_cancel(struct videobuf_queue *q)
 		if (NULL == q->bufs[i])
 			continue;
 		q->ops->buf_release(q, q->bufs[i]);
+//		kfree(q->bufs[i]);
+//		q->bufs[i] = NULL;
 	}
 	INIT_LIST_HEAD(&q->stream);
 }

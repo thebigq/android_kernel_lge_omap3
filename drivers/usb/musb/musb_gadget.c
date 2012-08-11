@@ -2093,7 +2093,7 @@ __acquires(musb->lock)
 	u8		power;
 
 //20110515 yongman.kwon@lge.com [LS855] change pid on phone idle state [START]
-#ifdef CONFIG_LGE_USB_GADGET_SUPPORT_FACTORY_USB
+#ifndef CONFIG_LGE_USB_GADGET_SUPPORT_FACTORY_USB
 	unsigned long	flags;
 	int cable_type;
 #endif
@@ -2111,7 +2111,7 @@ __acquires(musb->lock)
 
 
 //20110515 yongman.kwon@lge.com [LS855] change pid on phone idle state [START]
-#ifdef CONFIG_LGE_USB_GADGET_SUPPORT_FACTORY_USB
+#ifndef CONFIG_LGE_USB_GADGET_SUPPORT_FACTORY_USB
 		cable_type = get_ext_pwr_type();//LG_NORMAL_USB_CABLE;		
 		if(cable_type==LT_CABLE_56K)
 		{

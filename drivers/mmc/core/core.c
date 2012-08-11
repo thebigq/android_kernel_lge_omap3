@@ -924,6 +924,7 @@ static void mmc_power_up(struct mmc_host *host)
 	else
 		bit = fls(host->ocr_avail) - 1;
 
+	//printk(KERN_ERR "mmc_chk mmc power up1\n");
 	host->ios.vdd = bit;
 	if (mmc_host_is_spi(host)) {
 		host->ios.chip_select = MMC_CS_HIGH;
@@ -944,7 +945,14 @@ static void mmc_power_up(struct mmc_host *host)
 	 * This delay should be sufficient to allow the power supply
 	 * to reach the minimum voltage.
 	 */
-	mmc_delay(20);
+	if (strcmp(mmc_hostname(host), "mmc1")){
+		//printk("%s: mmc_delay 10\n", mmc_hostname(host));
+		mmc_delay(10);
+	}
+	else{
+		//printk("%s: mmc_delay 20\n", mmc_hostname(host));
+		mmc_delay(20);
+	}
 
 	host->ios.clock = host->f_min;
 
@@ -955,7 +963,16 @@ static void mmc_power_up(struct mmc_host *host)
 	 * This delay must be at least 74 clock sizes, or 1 ms, or the
 	 * time required to reach a stable voltage.
 	 */
-	mmc_delay(20);
+	//printk(KERN_ERR "mmc_chk mmc power up2\n");
+	if (strcmp(mmc_hostname(host), "mmc1")){
+		//printk("%s: mmc_delay 10\n", mmc_hostname(host));
+		mmc_delay(10);
+	}
+	else{
+		//printk("%s: mmc_delay 20\n", mmc_hostname(host));
+		mmc_delay(20);
+	}
+	printk(KERN_ERR "mmc_chk mmc power up exit\n");
 }
 #if 1//def CONFIG_LGE_MMC_WORKAROUND//LGE_CHANGES
 EXPORT_SYMBOL(mmc_power_up);
@@ -1039,7 +1056,9 @@ int mmc_resume_bus(struct mmc_host *host)
 
 	mmc_bus_get(host);
 	if (host->bus_ops && !host->bus_dead) {
+		printk(KERN_ERR "mmc_chk mmc_resume_bus 1\n");
 		mmc_power_up(host);
+		printk(KERN_ERR "mmc_chk mmc_resume_bus 2\n");
 		BUG_ON(!host->bus_ops->resume);
 		host->bus_ops->resume(host);
 	}
@@ -1048,6 +1067,7 @@ int mmc_resume_bus(struct mmc_host *host)
 		host->bus_ops->detect(host);
 
 	mmc_bus_put(host);
+	printk(KERN_ERR "mmc_chk mmc_resume_bus 3\n");
 	printk("%s: Deferred resume completed\n", mmc_hostname(host));
 	return 0;
 }
@@ -1206,7 +1226,9 @@ void mmc_rescan(struct work_struct *work)
 
 	mmc_claim_host(host);
 
+	printk(KERN_ERR "mmc_chk mmc rescan 1\n");	
 	mmc_power_up(host);
+	printk(KERN_ERR "mmc_chk mmc rescan 2\n");
 	sdio_reset(host);
 	mmc_go_idle(host);
 
@@ -1247,6 +1269,7 @@ void mmc_rescan(struct work_struct *work)
 
 	mmc_release_host(host);
 	mmc_power_off(host);
+	printk(KERN_ERR "mmc_chk mmc rescan 3\n");
 
 out:
 	if (extend_wakelock)
@@ -1332,10 +1355,13 @@ int mmc_power_restore_host(struct mmc_host *host)
 		return -EINVAL;
 	}
 
+	printk(KERN_ERR "mmc_chk mmc_power_restore_host 1\n");
 	mmc_power_up(host);
+	printk(KERN_ERR "mmc_chk mmc_power_restore_host 2\n");
 	ret = host->bus_ops->power_restore(host);
 
 	mmc_bus_put(host);
+	printk(KERN_ERR "mmc_chk mmc_power_restore_host 3\n");
 
 	return ret;
 }
@@ -1441,7 +1467,9 @@ int mmc_resume_host(struct mmc_host *host)
 
 	if (host->bus_ops && !host->bus_dead) {
 		if (!(host->pm_flags & MMC_PM_KEEP_POWER)) {
+			//printk(KERN_ERR "mmc_chk mmc_resume_host 1\n");			
 			mmc_power_up(host);
+			//printk(KERN_ERR "mmc_chk mmc_resume_host 2\n");
 			mmc_select_voltage(host, host->ocr);
 			/*
 			 * Tell runtime PM core we just powered up the card,
@@ -1455,6 +1483,7 @@ int mmc_resume_host(struct mmc_host *host)
 				pm_runtime_set_active(&host->card->dev);
 				pm_runtime_enable(&host->card->dev);
 			}
+			//printk(KERN_ERR "mmc_chk mmc_resume_host 3\n");
 		}
 		BUG_ON(!host->bus_ops->resume);
 		err = host->bus_ops->resume(host);
@@ -1466,6 +1495,7 @@ int mmc_resume_host(struct mmc_host *host)
 		}
 	}
 	mmc_bus_put(host);
+	printk(KERN_ERR "mmc_chk mmc_resume_host 4\n");
 
 	return err;
 }

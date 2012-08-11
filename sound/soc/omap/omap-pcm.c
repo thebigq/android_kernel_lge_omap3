@@ -32,6 +32,10 @@
 #include <plat/dma.h>
 #include "omap-pcm.h"
 
+#if 1 /* call_reset */
+#include <linux/wakelock.h>
+static struct wake_lock tone_play_wake_lock;
+#endif
 static const struct snd_pcm_hardware omap_pcm_hardware = {
 	.info			= SNDRV_PCM_INFO_MMAP |
 				  SNDRV_PCM_INFO_MMAP_VALID |
@@ -215,6 +219,7 @@ static int omap_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct omap_pcm_dma_data *dma_data = prtd->dma_data;
 	unsigned long flags;
 	int ret = 0;
+	extern unsigned int mic_switch_mode;   //minyoung1.kim@lge.com myoung_mic
 
 	spin_lock_irqsave(&prtd->lock, flags);
 	switch (cmd) {
@@ -227,11 +232,64 @@ static int omap_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 			dma_data->set_threshold(substream);
 
 		omap_start_dma(prtd->dma_ch);
+//2011.10.31 minyoung1.kim@lge.com - TI patch : reset during a call [START]
+		if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+#if 1 /* call_reset */
+			if(!wake_lock_active(&tone_play_wake_lock)) {
+				wake_lock(&tone_play_wake_lock);
+			}
+#endif 
+			printk("omap_pcm_trigger dma_ch = %d\n", prtd->dma_ch);
+			u32 ocp_reg = omap_readl(0x4805602C); // DMA4_OCP_SYSCONFIG
+
+			/* Setting it to no idle */
+			ocp_reg &= ~((1 << 3) | (1 << 4));
+			ocp_reg |=  (1 << 3);
+			ocp_reg &= ~((1 << 12) | (1 << 13));
+			ocp_reg |=  (1 << 12);	
+
+			omap_writel(ocp_reg, 0x4805602C);
+			//printk("DMA START/RESUME sysconfig register = 0%x\n", omap_readl(0x4805602C));		
+			//DEBUG_LOG("##play start\n");
+			printk("##play start\n");
+		}
+		else
+			//DEBUG_LOG("##rec start\n");
+			printk("##rec start\n");
+//2011.10.31 minyoung1.kim@lge.com - TI patch : reset during a call [END]
+
 		break;
 
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
+//2011.10.31 minyoung1.kim@lge.com - TI patch : reset during a call [START]
+
+		if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK){
+			printk("omap_pcm_trigger dma_ch = %d\n", prtd->dma_ch);
+			u32 ocp_reg = omap_readl(0x4805602C); // DMA4_OCP_SYSCONFIG
+
+			/* Setting it back to smart idle */
+			ocp_reg &= ~((1 << 3) | (1 << 4));
+			ocp_reg |=  (1 << 4);
+			ocp_reg &= ~((1 << 12) | (1 << 13));
+			ocp_reg |=  (1 << 13);	
+			omap_writel(ocp_reg, 0x4805602C);
+			//printk("DMA STOP/PAUSE sysconfig register = 0%x\n", omap_readl(0x4805602C));		
+			//DEBUG_LOG("##play stop\n");
+			printk("##play stop\n");
+#if 1 /* call_reset */
+			if(wake_lock_active(&tone_play_wake_lock)) {
+				wake_unlock(&tone_play_wake_lock);
+			}
+#endif 
+		}
+		else
+			//DEBUG_LOG("##rec stop\n");
+			printk("##rec stop\n");
+		    mic_switch_mode = 0;   //minyoung1.kim@lge.com myoung_mic
+//2011.10.31 minyoung1.kim@lge.com - TI patch : reset during a call [END]
+
 		prtd->period_index = -1;
 		omap_stop_dma(prtd->dma_ch);
 #if 0 // orig //jungsoo1221.lee - froyo merge
@@ -433,12 +491,18 @@ static struct snd_soc_platform_driver omap_soc_platform = {
 
 static __devinit int omap_pcm_probe(struct platform_device *pdev)
 {
+#if 1 /* call_reset */
+	wake_lock_init(&tone_play_wake_lock, WAKE_LOCK_SUSPEND, "tone_play_wl");
+#endif 
 	return snd_soc_register_platform(&pdev->dev,
 			&omap_soc_platform);
 }
 
 static int __devexit omap_pcm_remove(struct platform_device *pdev)
 {
+#if 1 /* call_reset */
+	wake_lock_destroy(&tone_play_wake_lock);
+#endif 
 	snd_soc_unregister_platform(&pdev->dev);
 	return 0;
 }

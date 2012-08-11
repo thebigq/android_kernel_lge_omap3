@@ -299,6 +299,18 @@ static int omap_mcbsp_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		mcbsp_data->active++;
+
+		/*
+		 * If any overrun happens at platform layer during playback case, 
+		 * sometimes dma transaction failure is not handled properly when McBSP is in Smart-Idle, 
+		 * so configuring McBSP in NO-Idle resolving the issue.(write to MCBSPLP_SYSCONFIG_REG)
+		 */
+//2011.10.31 minyoung1.kim@lge.com - TI patch : reset during a call [START]
+
+		if(substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+			omap_writel( (omap_readl(0x4902208c) & ~((1 << 3) | (1 << 4))) | (1 << 3),0x4902208c);
+//2011.10.31 minyoung1.kim@lge.com - TI patch : reset during a call [END]
+
 		omap_mcbsp_start(mcbsp_data->bus_id, play, !play);
 		break;
 

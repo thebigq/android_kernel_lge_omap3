@@ -1272,7 +1272,8 @@ open_retry:
 
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	mpu->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	//mpu->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	mpu->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 5;
 	mpu->early_suspend.suspend = mpu3050_early_suspend;
 	mpu->early_suspend.resume = mpu3050_early_resume;
 	register_early_suspend(&mpu->early_suspend);

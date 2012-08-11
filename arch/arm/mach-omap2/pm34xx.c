@@ -58,6 +58,7 @@
 #include "cm.h"
 #include "cm-regbits-34xx.h"
 #include "prm-regbits-34xx.h"
+#include "mux34xx.h"
 
 #include "prm.h"
 #include "pm.h"
@@ -164,6 +165,13 @@ static void omap3_core_save_context(void)
 	omap_ctrl_writel(omap_ctrl_readl(OMAP343X_PADCONF_ETK_D14),
 		OMAP343X_CONTROL_MEM_WKUP + 0x2a0);
 
+	/*
+	 * override the value saved in scratchpad memory, errata i583
+	 */
+	if (omap_rev() <= OMAP3630_REV_ES1_1)
+		omap_ctrl_writew(0x1f, OMAP343X_CONTROL_MEM_WKUP +
+			OMAP3_CONTROL_PADCONF_SDRC_CKE1_OFFSET);
+
 	/* Save the Interrupt controller context */
 	omap_intc_save_context();
 	/* Save the GPMC context */
@@ -175,6 +183,17 @@ static void omap3_core_save_context(void)
 
 static void omap3_core_restore_context(void)
 {
+	if (omap_rev() <= OMAP3630_REV_ES1_1) {
+		/*
+		 * errata i583 workaround, safe transition sequence for CKE1:
+		 */
+		omap_ctrl_writew(0x1b, OMAP2_CONTROL_PADCONFS +
+			OMAP3_CONTROL_PADCONF_SDRC_CKE1_OFFSET);
+		omap_ctrl_writew(0x19, OMAP2_CONTROL_PADCONFS +
+			OMAP3_CONTROL_PADCONF_SDRC_CKE1_OFFSET);
+		omap_ctrl_writew(0x18, OMAP2_CONTROL_PADCONFS +
+			OMAP3_CONTROL_PADCONF_SDRC_CKE1_OFFSET);
+	}
 	/* Restore the control module context, padconf restored by h/w */
 	omap3_control_restore_context();
 	/* Restore the GPMC context */
@@ -466,11 +485,13 @@ void omap_sram_idle(void)
 	int mpu_next_state = PWRDM_POWER_ON;
 	int per_next_state = PWRDM_POWER_ON;
 	int core_next_state = PWRDM_POWER_ON;
-	int core_prev_state, per_prev_state;
+	int core_prev_state = PWRDM_POWER_ON;
+	int per_prev_state = PWRDM_POWER_ON;
 	u32 sdrc_pwr = 0;
 	int per_state_modified = 0;
 	int dss_next_state = PWRDM_POWER_ON;
 	int dss_state_modified = 0;
+	int per_context_saved = 0;
 
 	if (!_omap_sram_idle)
 		return;
@@ -547,15 +568,15 @@ void omap_sram_idle(void)
 			}
 		}
 		if (per_next_state == PWRDM_POWER_OFF)
-    { 
-// 20100615 sookyoung.kim@lge.com TI patch for sleep current optimizaiton [START_LGE]
-				hgg_padconf_save();	// pad configuration value save
-// 20100615 sookyoung.kim@lge.com TI patch for sleep current optimizaiton [END_LGE]
+		{ 
+			// 20100615 sookyoung.kim@lge.com TI patch for sleep current optimizaiton [START_LGE]
+			hgg_padconf_save();	// pad configuration value save
+			// 20100615 sookyoung.kim@lge.com TI patch for sleep current optimizaiton [END_LGE]
 
-			omap2_gpio_prepare_for_idle(true);
-    }
-		else
-			omap2_gpio_prepare_for_idle(false);
+			per_context_saved = 1;
+		}
+
+		omap2_gpio_prepare_for_idle(per_context_saved);
 		omap_uart_prepare_idle(2);
 		omap_uart_prepare_idle(3);	//2011_01_13 by seunghyun.yi@lge.com for UART4 sleep 
 	}
@@ -678,22 +699,32 @@ void omap_sram_idle(void)
 		omap_uart_resume_idle(2);
 		omap_uart_resume_idle(3); //2011_01_13 by seunghyun.yi@lge.com for UART4 idle off UART ON
 		per_prev_state = pwrdm_read_prev_pwrst(per_pwrdm);
-		if (per_prev_state == PWRDM_POWER_OFF)
-		{ 
-// 20100608 sookyoung.kim@lge.com TI patch for sleep current optimization [START_LGE]
-				hgg_padconf_restore();	// pad configuration value restore
-// 20100608 sookyoung.kim@lge.com TI patch for sleep current optimization [END_LGE]
 
-			omap2_gpio_resume_after_idle(true);
-		}
-		else
-		{
-// 20100608 sookyoung.kim@lge.com TI patch for sleep current optimization [START_LGE]
-				hgg_padconf_restore();	// pad configuration value restore
-// 20100608 sookyoung.kim@lge.com TI patch for sleep current optimization [END_LGE]
+		// 20100608 sookyoung.kim@lge.com TI patch for sleep current optimization [START_LGE]
+		hgg_padconf_restore();	// pad configuration value restore
+		// 20100608 sookyoung.kim@lge.com TI patch for sleep current optimization [END_LGE]
 
-			omap2_gpio_resume_after_idle(false);
+		omap2_gpio_resume_after_idle(per_context_saved);
+
+		/* Errata i582 */
+		if ((omap_rev() <= OMAP3630_REV_ES1_1) &&
+			omap_uart_check_per_uarts_used() &&
+			(core_prev_state == PWRDM_POWER_ON) &&
+			(per_prev_state == PWRDM_POWER_OFF)) {
+			/*
+			 * We dont seem to have a real recovery other than reset
+			 * Errata i582:Alternative available here is to do a
+			 * reboot OR go to per off/core off, we will just print
+			 * and cause uart to be in an unstable state and
+			 * continue on till we hit the next off transition.
+			 * Reboot of the device due to this corner case is
+			 * undesirable.
+			 */
+			if (omap_uart_per_errata())
+				pr_err("%s: PER UART hit with Errata i582 "
+					"Corner case.\n", __func__);
 		}
+
 		if (per_state_modified)
 			pwrdm_set_next_pwrst(per_pwrdm, PWRDM_POWER_OFF);
 	}
@@ -1686,6 +1717,26 @@ static int __init omap3_pm_init(void)
 /* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-07-15 */
 
 	clkdm_add_wkdep(neon_clkdm, mpu_clkdm);
+
+	/*
+	 * Part of fix for errata i468.
+	 * GPIO pad spurious transition (glitch/spike) upon wakeup
+	 * from SYSTEM OFF mode.
+	 */
+	if (omap_rev() <= OMAP3630_REV_ES1_2) {
+		struct clockdomain *wkup_clkdm;
+
+		clkdm_add_wkdep(per_clkdm, core_clkdm);
+
+		/* Also part of fix for errata i582. */
+		wkup_clkdm = clkdm_lookup("wkup_clkdm");
+		if (wkup_clkdm)
+			clkdm_add_wkdep(per_clkdm, wkup_clkdm);
+		else
+			printk(KERN_ERR "%s: failed to look up wkup clock "
+				"domain\n", __func__);
+	}
+
 	if (cpu_is_omap3630())
 		pm34xx_errata |= RTA_ERRATA_i608;
 	/*

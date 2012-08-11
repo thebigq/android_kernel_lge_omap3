@@ -17,7 +17,7 @@
  */
 // prime@sdcmicro.com Reworked for 2.6.35 [START]
 
-/*#define DEBUG*/
+/*#define PANEL_HUB_DBG*/
 
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -34,22 +34,23 @@
 #include <linux/wakelock.h>
 
 #include <plat/display.h>
+#include "../dss/dss.h"
 
 #define MODULE_NAME		"B-LCD"
 
 #define DSI_DISPLAY_SUSPENDED 0 
 #define DSI_DISPLAY_DISABLED  1
 
-#ifndef DEBUG
-//#define DEBUG
-//#undef DEBUG
+#ifndef PANEL_HUB_DBG
+//#define PANEL_HUB_DBG
+//#undef PANEL_HUB_DBG
 #endif
 
-#ifdef DEBUG
+#ifdef PANEL_HUB_DBG
 #define DBG(fmt, args...) 				\
 	printk(KERN_DEBUG "[%s] %s(%d): " 		\
 		fmt, MODULE_NAME, __func__, __LINE__, ## args); 
-#else	/* DEBUG */
+#else	/* PANEL_HUB_DBG */
 #define DBG(...) 
 #endif
 
@@ -58,7 +59,7 @@
 #define GPIO_LCD_MAKER_ID		55
 
 static int hub_dcs_read_1(enum omap_dsi_index ix, u8 dcs_cmd, u8 *data);
-#ifdef DEBUG
+#ifdef PANEL_HUB_DBG
 static void read_status_reg(enum omap_dsi_index ix, u8* msg)
 {
 	u8 data[6];
@@ -1096,6 +1097,7 @@ static int hub_power_on(struct omap_dss_device *dssdev)
 	int i, r;
 	enum omap_dsi_index ix;
 
+	DSSDBG_ANKIT_PRINT("ANKIT::hub_power_on\n");
 	ix = (dssdev->channel == OMAP_DSS_CHANNEL_LCD) ? DSI1 : DSI2;
 
 // prime@sdcmicro.com Prevent LCD blinking at boot up time [START]
@@ -1154,8 +1156,11 @@ static int hub_power_on(struct omap_dss_device *dssdev)
 #endif
 
 	r = _hub_enable_te(dssdev, td->te_enabled);
-	if (r)
+	DSSDBG_ANKIT_PRINT("ANKIT::hub_power_on::Value of hub_enable_te:%d\n", r);
+	if (r) {
+		DSSDBG_ANKIT_PRINT("%s: Error , Value of hub_eanble_te:%d\n", r);
 		goto err;
+	}
 
 	td->enabled = 1;
 
@@ -1314,6 +1319,7 @@ static int hub_suspend(struct omap_dss_device *dssdev)
 	hub_stop(dssdev);
 
 	dssdev->state = OMAP_DSS_DISPLAY_SUSPENDED;
+	DSSDBG_ANKIT_PRINT("ANKIT::hub_suspend\n");
 err:
 	mutex_unlock(&td->lock);
 	return r;
@@ -1330,10 +1336,12 @@ static int hub_enable(struct omap_dss_device *dssdev)
 
 	if (dssdev->state != OMAP_DSS_DISPLAY_DISABLED) {
 		r = -EINVAL;
+		DSSDBG_ANKIT_PRINT("ANKIT:: Error value of r if Display_disabled:%d\n",r);
 		goto err;
 	}
 
 	r = hub_start(dssdev);
+	DSSDBG_ANKIT_PRINT("ANKIT::hub_enable::value of hub_start:%d\n",r);
 err:
 	mutex_unlock(&td->lock);
 	return r;
@@ -1365,9 +1373,11 @@ static int hub_resume(struct omap_dss_device *dssdev)
 #endif 
 /* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-08-03 */
 		r = -EINVAL;
+		DSSDBG_ANKIT_PRINT("ANKIT:: error hub_resume::value of r:%d\n",r);
 		goto err;
 	}
 	r = hub_start(dssdev);
+	DSSDBG_ANKIT_PRINT("ANKIT::hub_resume::value of hub_start:%d\n",r);
 err:
 	mutex_unlock(&td->lock);
 	return r;
@@ -1382,6 +1392,7 @@ static void hub_framedone_cb(int err, void *data)
 	ix = (dssdev->channel == OMAP_DSS_CHANNEL_LCD) ? DSI1 : DSI2;
 
 	dev_dbg(&dssdev->dev, "framedone, err %d\n", err);
+	DSSDBG_ANKIT_PRINT("ANKIT::%s\n", __func__);
 	dsi_bus_unlock(ix);
 }
 
@@ -1392,6 +1403,7 @@ static irqreturn_t hub_te_isr(int irq, void *data)
 	int old;
 	int r;
 
+	DSSDBG_ANKIT_PRINT("ANKIT::%s\n", __func__);
 	old = atomic_cmpxchg(&td->do_update, 1, 0);
 
 	if (old) {
@@ -1403,8 +1415,10 @@ static irqreturn_t hub_te_isr(int irq, void *data)
 				td->update_region.w,
 				td->update_region.h,
 				hub_framedone_cb, dssdev);
-		if (r)
+		if (r) {
+			printk("ANKIT:: error hub_te_isr::value of r:%d\n",r);
 			goto err;
+		}
 	}
 
 	return IRQ_HANDLED;
@@ -1436,6 +1450,7 @@ static int hub_update_locked(struct omap_dss_device *dssdev,
 	int r;
 	enum omap_dsi_index ix;
 
+	DSSDBG_ANKIT_PRINT("ANKIT::hub_update_locked\n");
 	ix = (dssdev->channel == OMAP_DSS_CHANNEL_LCD) ? DSI1 : DSI2;
 
 	WARN_ON(!dsi_bus_is_locked(ix));
@@ -1446,12 +1461,16 @@ static int hub_update_locked(struct omap_dss_device *dssdev,
 	}
 
 	r = omap_dsi_prepare_update(dssdev, &x, &y, &w, &h, true);
-	if (r)
+	if (r) {
+		DSSDBG_ANKIT_PRINT("ANKIT:: error hub_update_locked::Value of r_omap_dsi_prepare_update=%d\n",r);
 		goto err;
+	}
 
 	r = hub_set_update_window(ix, x, y, w, h);
-	if (r)
+	if (r) {
+		printk("ANKIT:: error hub_update_locked::Value of r_hub_set_update_window=%d\n",r);
 		goto err;
+	}
 
 #if 1 //TD1396000459: LG_CHANGE_S lee.hyunji@lge.com 20110502 Tearing issue
 	if (td->te_enabled && td->use_ext_te) {
@@ -1471,8 +1490,10 @@ static int hub_update_locked(struct omap_dss_device *dssdev,
 		else
 			r = omap_dsi_update(dssdev, TCH, x, y, w, h,
 				hub_framedone_cb, dssdev);
-		if (r)
+		if (r) {
+			printk("ANKIT:: error hub_update_locked::Value of r_omap_dsi_update=%d\n",r);
 			goto err;
+		}
 	}
 #else
 	r = omap_dsi_update(dssdev, TCH, x, y, w, h,
@@ -1496,6 +1517,7 @@ static int hub_update(struct omap_dss_device *dssdev,
 	enum omap_dsi_index ix;
 	struct hub_data *td = dev_get_drvdata(&dssdev->dev);
 
+	DSSDBG_ANKIT_PRINT("ANKIT::%s: \n", __func__);
 	dev_dbg(&dssdev->dev, "update %d, %d, %d x %d\n", x, y, w, h);
 	ix = (dssdev->channel == OMAP_DSS_CHANNEL_LCD) ? DSI1 : DSI2;
 
@@ -1522,6 +1544,7 @@ static int hub_sched_update(struct omap_dss_device *dssdev,
 
 	if (mutex_trylock(&td->lock)) {
 		r = omap_dsi_sched_update_lock(dssdev, x, y, w, h, false);
+		DSSDBG_ANKIT_PRINT("ANKIT::hub_sched_update::Value of r_omap_dsi_sched_update=%d\n",r);
 
 		if (!r) {
 			/* start the update now */
@@ -1538,9 +1561,12 @@ static int hub_sched_update(struct omap_dss_device *dssdev,
 	} else {
 		/* this locks dsi bus if it can and returns 0 */
 		r = omap_dsi_sched_update_lock(dssdev, x, y, w, h, true);
+		DSSDBG_ANKIT_PRINT("ANKIT::hub_sched_update:: === Value of r_omap_dsi_sched_update=%d\n",r);
 
-		if (r == -EBUSY)
+		if (r == -EBUSY) {
+			DSSDBG_ANKIT_PRINT("%s: Error === value of omap_dsi_sched_update_lock %d\n", __func__, r);
 			r = 0;
+		}
 	}
 
 	return r;
@@ -1624,8 +1650,11 @@ static int hub_enable_te(struct omap_dss_device *dssdev, bool enable)
 
 	if (td->enabled) {
 		r = _hub_enable_te(dssdev, enable);
-		if (r)
+		DSSDBG_ANKIT_PRINT("ANKIT::hub_enable_te::Value of r_hub_enable_te=%d\n",r);
+		if (r) {
+			DSSDBG_ANKIT_PRINT("%s : error Value of r_hub_enable_te=%d\n",__func__, r);
 			goto err;
+		}
 	}
 
 	td->te_enabled = enable;
@@ -1674,8 +1703,10 @@ static int hub_rotate(struct omap_dss_device *dssdev, u8 rotate)
 	if (td->enabled) {
 		r = hub_set_addr_mode(ix, rotate, td->mirror);
 
-		if (r)
+		if (r) {
+			DSSDBG_ANKIT_PRINT("%s: Error The Value of hub_set_addr_mode %d\n", __func__, r);
 			goto err;
+		}
 	}
 
 	td->rotate = rotate;
@@ -1720,8 +1751,10 @@ static int hub_mirror(struct omap_dss_device *dssdev, bool enable)
 	dsi_bus_lock(ix);
 	if (td->enabled) {
 		r = hub_set_addr_mode(ix, td->rotate, enable);
-		if (r)
+		if (r) {
+			DSSDBG_ANKIT_PRINT("%s Error r = %d\n", __func__, r);
 			goto err;
+		}
 	}
 
 	td->mirror = enable;
@@ -1767,8 +1800,10 @@ static int hub_run_test(struct omap_dss_device *dssdev, int test_num)
 	dsi_bus_lock(ix);
 
 	r = hub_dcs_read_1(ix, DCS_GET_ID1, &id1);
-	if (r)
+	if (r) {
+		DSSDBG_ANKIT_PRINT("%s: Error r %d\n", __func__, r);
 		goto err2;
+	}
 
 	dsi_bus_unlock(ix);
 	mutex_unlock(&td->lock);
@@ -1800,6 +1835,7 @@ static int hub_memory_read(struct omap_dss_device *dssdev,
 
 	if (!td->enabled) {
 		r = -ENODEV;
+		printk("ANKIT:: error hub_memory_read:r=_ENODEV\n");		
 		goto err1;
 	}
 
@@ -1820,8 +1856,10 @@ static int hub_memory_read(struct omap_dss_device *dssdev,
 	hub_set_update_window(ix, x, y, w, h);
 
 	r = dsi_vc_set_max_rx_packet_size(ix, TCH, plen);
-	if (r)
+	if (r) {
+		DSSDBG_ANKIT_PRINT("ANKIT:: error hub_memory_read::Value of r_dsi_vc_set_max_rx_packet_size=%d\n",r);
 		goto err2;
+	}
 
 	while (buf_used < size) {
 		u8 dcs_cmd = first ? 0x2e : 0x3e;
@@ -1829,8 +1867,10 @@ static int hub_memory_read(struct omap_dss_device *dssdev,
 
 		r = dsi_vc_dcs_read(ix, TCH, dcs_cmd,
 				buf + buf_used, size - buf_used);
+		DSSDBG_ANKIT_PRINT("ANKIT::hub_memory_read::Value of r_dsi_vc_dcs_read=%d\n",r);
 
 		if (r < 0) {
+			DSSDBG_ANKIT_PRINT("%s: error Value of r_dsi_vc_dcs_read=%d\n", __func__, r);
 			dev_err(&dssdev->dev, "read error\n");
 			goto err3;
 		}
@@ -1911,8 +1951,10 @@ static void hub_esd_work(struct work_struct *work)
 	 * to re-enable TE after self diagnostics */
 	if (td->use_ext_te && td->te_enabled) {
 		r = _hub_enable_te(dssdev, true);
-		if (r)
+		if (r) {
+			printk("ANKIT:: error hub_esd_work::value of r_hub_enable_te:%d\n",r);
 			goto err;
+		}
 	}
 
 	dsi_bus_unlock(ix);
@@ -1940,6 +1982,7 @@ static int hub_set_update_mode(struct omap_dss_device *dssdev,
 			       enum omap_dss_update_mode mode)
 {
 	if (mode != OMAP_DSS_UPDATE_MANUAL) {
+		DSSDBG_ANKIT_PRINT("ANKIT::hub_set_update_mode::EINVAL\n");
 		return -EINVAL;
 	}
 

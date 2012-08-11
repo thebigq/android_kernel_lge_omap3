@@ -73,6 +73,7 @@ enum tty_modes {
     TTY_FULL = 3
 };
 static int tty_mode = TTY_OFF;
+unsigned int mic_switch_mode = 0; //minyoung1.kim@lge.com 1: main mic,  2: 2nd mic, 3: BT mic 
 #endif //[LG_FW_AUDIO_TTY End] 
 // prime@sdcmicro.com Merge with 2.6.32 [START]
 #ifdef CONFIG_MACH_LGE_HUB
@@ -569,6 +570,17 @@ static const twl_reg_type twl_mic2bias_tab[] =
 {TWL4030_CMD ,0x0f, 0x00},	//original 0x7x
 	{TWL4030_END_SEQ,0x00,0x00} 
 };
+
+//[LG_FW_AUDIO_VD Start]20110805 jungsoo1221.lee - After Cam Rec, "Speak Now" is not played with BT
+#if 1
+static const twl_reg_type twl_mic_bt[] =
+{//20110206 jisun.kwon : due to pop noise when incoming call is received 
+	{TWL4030_CMD ,0x0f, 0x04},	//original 0x7x
+	{TWL4030_END_SEQ,0x00,0x00} 
+};
+#endif
+//[LG_FW_AUDIO_VD End]20110805 jungsoo1221.lee - After Cam Rec, "Speak Now" is not played with BT
+
 /* 20110106 jiwon.seo@lge.com : speaker phone on pop nosie  [END] */
 //[LG_FW_DCM_MERGE End] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
 
@@ -2478,28 +2490,44 @@ int wake_lock_on = 0;
 //jongik2.kim 20101220 add mic2 control [start]
 void twl4030_set_mic_switch(int mic)
 {
+    	printk("%s, mic =%d", __func__, mic); 
     if(mic ==  0)
     {
 //[LG_FW_DCM_MERGE Start] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
          set_voice_table((twl_reg_type*)&twl_mic1bias_tab[0]); /* jiwon.seo@lge.com 20100109 : ARS start noise */
-         codec_delay_msec(10);  /* jiwon.seo@lge.com 20100109 : ASR start noise */
+         codec_delay_msec(5); //jungsoo1221.lee 20110915  CTS Gain Linearity//codec_delay_msec(10);  /* jiwon.seo@lge.com 20100109 : ASR start noise */
 //[LG_FW_DCM_MERGE End] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
          gpio_direction_output(87, 0);
 //[LG_FW_DCM_MERGE Start] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
-         codec_delay_msec(200);  /* jiwon.seo@lge.com 20100109 : ASR start noise */
+         codec_delay_msec(20); //jungsoo1221.lee 20110915  CTS Gain Linearity// codec_delay_msec(200);  /* jiwon.seo@lge.com 20100109 : ASR start noise */
 //[LG_FW_DCM_MERGE End] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
+		mic_switch_mode  = 1;  //minyoung1.kim@lge.com myoung_mic
     }
+//[LG_FW_AUDIO_VD Start]20110805 jungsoo1221.lee - After Cam Rec, "Speak Now" is not played with BT
+#if 0 
     else
+#else
+    else if(mic == 1)
+#endif
+//[LG_FW_AUDIO_VD End]20110805 jungsoo1221.lee - After Cam Rec, "Speak Now" is not played with BT
     {
 //[LG_FW_DCM_MERGE Start] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
           set_voice_table((twl_reg_type*)&twl_mic2bias_tab[0]); 
-          codec_delay_msec(10); 
+          codec_delay_msec(5);//jungsoo1221.lee 20110915//       codec_delay_msec(10); 
 //[LG_FW_DCM_MERGE End] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
           gpio_direction_output(87, 1);
 //[LG_FW_DCM_MERGE Start] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
-          codec_delay_msec(10); 		
+          codec_delay_msec(5);//jungsoo1221.lee 20110915//      codec_delay_msec(10); 		
 //[LG_FW_DCM_MERGE End] jungsoo1221.lee 20110607 - CTS ASR Fail (Delay fix)
+	   mic_switch_mode  = 2;  //minyoung1.kim@lge.com myoung_mic
     }
+//[LG_FW_AUDIO_VD Start]20110805 jungsoo1221.lee - After Cam Rec, "Speak Now" is not played with BT
+else if(mic==2)
+{
+	set_voice_table((twl_reg_type*)&twl_mic_bt[0]); 
+	mic_switch_mode  = 3;  //minyoung1.kim@lge.com myoung_mic
+}
+//[LG_FW_AUDIO_VD End]20110805 jungsoo1221.lee - After Cam Rec, "Speak Now" is not played with BT
      return;
 }
 //jongik2.kim 20101220 add mic2 control [end]
@@ -2507,8 +2535,64 @@ void twl4030_set_mic_switch(int mic)
 #if defined (CONFIG_LGE_LAB3_BOARD) //[LG_FW_AUDIO_TTY Start] - jungsoo1221.lee
 void twl4030_set_tty_mode(int mode)
 {
+	struct snd_soc_codec* codec = snd_soc_get_codec("twl4030-codec");   //minyoung1.kim@lge.com - call중 tty모드 setting 되지 않은 현상 수정. 
 	printk("[1]twl4030  twl4030_set_tty_mode %d" , mode );	
 	tty_mode = mode;
+	
+//minyoung1.kim@lge.com - call중 tty모드 setting 되지 않은 현상 수정.[START]
+	if(cur_twl_mode==TWL4030_HEADSET_CALL_MODE || cur_twl_mode ==TWL4030_HEADPHONE_CALL_MODE)
+		{
+#if defined (CONFIG_LGE_LAB3_BOARD) //[LG_FW_AUDIO_TTY Start] - jungsoo1221.lee ----------
+					if(tty_mode == TTY_VCO) {
+#if 1
+						if(call_headset_ramp == 0)
+						//	headset_ramp(twl4030_socdev->card->codec, 1);
+							headset_ramp(codec, 1);
+#endif
+						 set_voice_table((twl_reg_type*)&twl_tty_vco_call_tab[0]);	
+						 gpio_direction_output(87, 0);
+						// printk("[1]twl4030 TTY VCO");
+					} 
+					else if (tty_mode == TTY_HCO) {
+#if 1	    	
+						if(call_headset_ramp == 1)
+							//headset_ramp(twl4030_socdev->card->codec, 0);
+							headset_ramp(codec, 0);
+#endif				
+						set_voice_table((twl_reg_type*)&twl_tty_hco_call_tab[0]);
+						gpio_direction_output(87, 0);
+						//printk("[1]twl4030 TTY HCO");
+					}
+					else if (tty_mode == TTY_FULL) {
+#if 1	              
+						if(call_headset_ramp == 0)
+							//headset_ramp(twl4030_socdev->card->codec, 1);
+							headset_ramp(codec, 1);
+#endif				
+						set_voice_table((twl_reg_type*)&twl_tty_full_call_tab[0]);
+						gpio_direction_output(87, 0);
+						//printk("[1]twl4030 TTY FULL");
+					}
+					else
+#endif //[LG_FW_AUDIO_TTY End] --------------------------------------------
+					{
+#if 1	    
+					if(call_headset_ramp == 0)
+		//			headset_ramp(twl4030_socdev->codec, 1); 	//junyeop.kim@lge.com, headset ramp enable
+					headset_ramp(codec, 1); 					/* jung.chanmin@lge.com - change headset ramp enable */
+#endif				
+						if(cur_twl_mode==TWL4030_HEADSET_CALL_MODE) {
+							//printk("[1]twl4030 TTY OFF SET");
+							set_voice_table((twl_reg_type*)&twl_headset_call_tab[0]);
+						}
+						else {   //TWL4030_HEADPHONE_CALL_MODE
+					   	 	//printk("[1]twl4030 TTY OFF PHONE");
+							set_voice_table((twl_reg_type*)&twl_headphone_call_tab[0]);
+						}
+							gpio_direction_output(87, 0);
+					}		
+		}
+//minyoung1.kim@lge.com - call중 tty모드 setting 되지 않은 현상 수정.[END]
 	
 }
 
@@ -2523,8 +2607,13 @@ void voice_configure_path(voice_mode_enum mode)
 	struct snd_soc_codec* codec = snd_soc_get_codec("twl4030-codec");
 	struct twl4030_priv *twl4030 = snd_soc_codec_get_drvdata(codec);
 	printk(KERN_INFO"voice_configure_path(at twl4030).....path = %d\n",mode);			
-	if(cur_twl_mode == mode)
+	#if 1   //2011.09.28 minyoung1.kim@lge.com - device path restore after voice search ->  Blocked   //myoung_mic
+	//if(cur_twl_mode == mode)
+	if((cur_twl_mode == mode)&&(mode == 0)&&((mic_switch_mode == 1)||(mic_switch_mode == 2))) {
+		//printk("mic switch return !!!!!!!!!!!!!!!!!\n");
 		return;
+		}
+	#endif
 	#if 0 /* LGE_CHANGE [jongik2.kim@lge.com] 2010-01-04, eclair sound path */
 	if(mode == TWL4030_HEADSET_CALL_MODE)
 	    if(get_headset_type() == 1)
@@ -2694,9 +2783,10 @@ void mic_configure_path(voice_mode_enum mode)
 {
 	printk("[LUCKYJUN77]mic_configure_path : %d\n", mode);
 //    struct twl4030_priv *twl4030 = twl4030_socdev->codec->private_data;
+#if 0   //2011.09.28 minyoung1.kim@lge.com - device path restore after voice search  -> Blocked
     if(cur_mic_mode == mode)
 		return;
-
+#endif
     switch(mode){
         case TWL4030_OFF_MIC_MODE :	set_voice_table((twl_reg_type*)&twl_mic_off_tab[0]);
 						     break;
@@ -3687,10 +3777,17 @@ void hub_headsetdet_bias(int bias)
 
 	twl_i2c_read_u8(TWL4030_MODULE_AUDIO_VOICE, &tmp, 0x04); //junyeop.kim@lge.com
  #ifdef CONFIG_LGE_LAB3_BOARD
+ #if 0 //2011.08. 25. jungsoo1221.lee - Headset insert -> Spk mode On -> Headset remove ==> mic2 no input
 	if(bias == 1)
        tmp = 0x04; // tmp |= 0x02; //jungsoo1221.lee - HSMICBIAS_EN(micbias3 Enable)
 	else
        tmp = 0x00; // tmp &= ~0x02;   //junyeop.kim@lge.com   //jungsoo1221.lee  - - HSMICBIAS_EN(micbias3 Disable)
+#else
+	if(bias == 1)
+		tmp |= 0x04; //HSMICBIAS_EN : Enable
+	else
+		tmp &= ~0x04;  //HSMICBIAS_EN : Disble
+#endif
  #else
 	 if(bias == 1)
 		tmp |= 0x02; 

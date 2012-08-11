@@ -1598,7 +1598,7 @@ static int synaptics_ts_probe(
 	/*************************************************************************************************
 	 * 4. Read RMI Version
 	 * To distinguish T1021 and T1007. Select RMI Version
-	 * TODO: Power를 이전에 하는 것으로 변경하면 위치 변경해야 한다.
+	 * TODO: Power?? ?????? ?求? ??으?? ?????玖? 위치 ?????瞞? ?磯?.
 	 *************************************************************************************************/
 
 	// device check
@@ -1731,7 +1731,8 @@ static int synaptics_ts_probe(
 	/* 20110216 seven.kim@lge.com to follow android sleep/resume flow [END] */	
 	
 #ifdef CONFIG_HAS_EARLYSUSPEND /*20110214 to follow Android Resume flow for LCD */
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	//ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1;
 	ts->early_suspend.suspend = synaptics_ts_early_suspend;
 	ts->early_suspend.resume = synaptics_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
