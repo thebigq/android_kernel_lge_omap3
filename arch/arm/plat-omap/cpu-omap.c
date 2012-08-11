@@ -287,7 +287,7 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 		return -EINVAL;
 
 #ifdef CONFIG_MACH_LGE_SNIPER
-	policy->cur = policy->min = policy->max = 800000;
+	policy->cur = policy->min = policy->max = 1000000;
 #else
 	policy->cur = policy->min = policy->max = omap_getspeed(policy->cpu);
 #endif
@@ -313,8 +313,8 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 
 #ifdef CONFIG_MACH_LGE_SNIPER
 	policy->min = 300000;
-	policy->max = 800000;
-	policy->cur = 800000;
+	policy->max = 1000000;
+	policy->cur = 1000000;
 #else
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
