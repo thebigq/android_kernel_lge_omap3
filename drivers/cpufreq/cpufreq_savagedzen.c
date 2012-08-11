@@ -97,14 +97,14 @@ static unsigned int up_min_freq;
  * to minimize wakeup issues.
  * Set sleep_max_freq=0 to disable this behavior.
  */
-#define DEFAULT_SLEEP_MAX_FREQ 250000
+#define DEFAULT_SLEEP_MAX_FREQ 245760
 static unsigned int sleep_max_freq;
 
 /*
  * The frequency to set when waking up from sleep.
  * When sleep_max_freq=0 this will have no effect.
  */
-#define DEFAULT_SLEEP_WAKEUP_FREQ 800000
+#define DEFAULT_SLEEP_WAKEUP_FREQ 1024000
 static unsigned int sleep_wakeup_freq;
 
 /*
@@ -125,7 +125,7 @@ static unsigned int sample_rate_jiffies;
  * Freqeuncy delta when ramping up.
  * zero disables and causes to always jump straight to max frequency.
  */
-#define DEFAULT_RAMP_UP_STEP 100000
+#define DEFAULT_RAMP_UP_STEP 50000
 static unsigned int ramp_up_step;
 
 /*
@@ -155,7 +155,7 @@ static int cpufreq_governor_savagedzen(struct cpufreq_policy *policy,
 static
 #endif
 struct cpufreq_governor cpufreq_gov_savagedzen = {
-        .name = "savagedzen",
+        .name = "SavagedZen",
         .governor = cpufreq_governor_savagedzen,
         .max_transition_latency = 9000000,
         .owner = THIS_MODULE,
@@ -581,6 +581,11 @@ static int cpufreq_governor_savagedzen(struct cpufreq_policy *new_policy,
                 unsigned int event)
 {
         unsigned int cpu = new_policy->cpu;
+		unsigned int min_freq = ~0;
+		unsigned int max_freq = 0;
+		unsigned int i;
+		struct cpufreq_frequency_table *freq_table;
+
         int rc;
         struct savagedzen_info_s *this_savagedzen = &per_cpu(savagedzen_info, cpu);
 
@@ -604,6 +609,19 @@ static int cpufreq_governor_savagedzen(struct cpufreq_policy *new_policy,
                 this_savagedzen->cur_policy = new_policy;
                 this_savagedzen->enable = 1;
 
+				freq_table = cpufreq_frequency_get_table(new_policy->cpu);
+				for (i = 0; (freq_table[i].frequency != CPUFREQ_TABLE_END); i++) {
+					unsigned int freq = freq_table[i].frequency;
+					if (freq == CPUFREQ_ENTRY_INVALID) {
+						continue;
+					}
+					if (freq < min_freq)	
+						min_freq = freq;
+					if (freq > max_freq)
+						max_freq = freq;
+				}
+				sleep_max_freq = min_freq;								//Minimum CPU frequency in table
+				sleep_wakeup_freq = freq_table[(i-1)/2].frequency > min_freq ? freq_table[(i-1)/2].frequency : max_freq;		//Value in midrange of available CPU frequencies if sufficient number of freq bins available
                 // notice no break here!
 
         case CPUFREQ_GOV_LIMITS:
@@ -748,4 +766,3 @@ module_exit(cpufreq_savagedzen_exit);
 MODULE_AUTHOR ("jsseidel");
 MODULE_DESCRIPTION ("'cpufreq_savagedzen' - A badass cpufreq governor! Based on Smartass");
 MODULE_LICENSE ("GPL");
-

@@ -286,7 +286,11 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 	if (policy->cpu >= num_online_cpus())
 		return -EINVAL;
 
+#ifdef CONFIG_MACH_LGE_SNIPER
+	policy->cur = policy->min = policy->max = 800000;
+#else
 	policy->cur = policy->min = policy->max = omap_getspeed(policy->cpu);
+#endif
 
 	if (!(cpu_is_omap34xx() || cpu_is_omap44xx())) {
 		clk_init_cpufreq_table(&freq_table);
@@ -307,9 +311,15 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 							VERY_HI_RATE) / 1000;
 	}
 
+#ifdef CONFIG_MACH_LGE_SNIPER
+	policy->min = 300000;
+	policy->max = 800000;
+	policy->cur = 800000;
+#else
 	policy->min = policy->cpuinfo.min_freq;
 	policy->max = policy->cpuinfo.max_freq;
 	policy->cur = omap_getspeed(policy->cpu);
+#endif
 
 	/* Program the actual transition time for worstcase */
 	/* TI measurements showed that the actual transition time never goes beyond 10ms on OMAP 3430, 3630 and OMAP 4. 20ms buffer are added to avoid too frequent ondemand timer expiry. */
