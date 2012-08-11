@@ -311,14 +311,10 @@ static int omap_cpu_init(struct cpufreq_policy *policy)
 	policy->max = policy->cpuinfo.max_freq;
 	policy->cur = omap_getspeed(policy->cpu);
 
-	/* FIXME: what's the actual transition time? */
-/* LGE_CHANGE_S <sunggyun.yu@lge.com> 2010-12-01 For fast ondemand freq. change */
-#if 1
-	policy->cpuinfo.transition_latency = 15 * 1000;
-#else
-	policy->cpuinfo.transition_latency = 300 * 1000;
-#endif
-/* LGE_CHANGE_E <sunggyun.yu@lge.com> 2010-12-01 For fast ondemand freq. change */
+	/* Program the actual transition time for worstcase */
+	/* TI measurements showed that the actual transition time never goes beyond 10ms on OMAP 3430, 3630 and OMAP 4. 20ms buffer are added to avoid too frequent ondemand timer expiry. */
+	policy->cpuinfo.transition_latency = 30 * 1000;
+
 #ifdef CONFIG_SMP
 	/*
 	 * On OMAP4i, both processors share the same voltage and
