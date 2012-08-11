@@ -36,6 +36,10 @@
 
 #include "binder.h"
 
+/* 20110331 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+#include <linux/dvs_suite.h>
+/* 20110331 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
+
 static DEFINE_MUTEX(binder_lock);
 static DEFINE_MUTEX(binder_deferred_lock);
 
@@ -1341,7 +1345,7 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 				break;
 			}
 			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        node %d u%p\n",
+					 "		node %d u%p\n",
 				     node->debug_id, node->ptr);
 			binder_dec_node(node, fp->type == BINDER_TYPE_BINDER, 0);
 		} break;
@@ -1355,14 +1359,14 @@ static void binder_transaction_buffer_release(struct binder_proc *proc,
 				break;
 			}
 			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        ref %d desc %d (node %d)\n",
+					 "		ref %d desc %d (node %d)\n",
 				     ref->debug_id, ref->desc, ref->node->debug_id);
 			binder_dec_ref(ref, fp->type == BINDER_TYPE_HANDLE);
 		} break;
 
 		case BINDER_TYPE_FD:
 			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        fd %ld\n", fp->handle);
+					 "		fd %ld\n", fp->handle);
 			if (failed_at)
 				task_close_fd(proc, fp->handle);
 			break;
@@ -1553,6 +1557,220 @@ static void binder_transaction(struct binder_proc *proc,
 	t->buffer->debug_id = t->debug_id;
 	t->buffer->transaction = t;
 	t->buffer->target_node = target_node;
+
+#if 0	// {
+	/* 20110331 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+	if(ds_status.flag_run_dvs == 1){
+
+		switch(*(ds_status.tg_owner_comm[proc->tsk->pid]+0)){
+#if 0
+			case 'm':
+				if(
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+1) == 'e' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+2) == 'd' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+3) == 'i' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+4) == 'a' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+5) == 's' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+6) == 'e' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+7) == 'r' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+8) == 'v' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+9) == 'e' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+10) == 'r'
+				)
+				{
+					if(ds_status.tgid[proc->tsk->pid] != ds_status.tgid[t->to_proc->tsk->pid]){
+						ds_status.type[t->to_proc->tsk->pid] = DS_SRT_UI_CLIENT_TASK;
+						if(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT < 1000000){
+							ds_status.ipc_timeout_sec[t->to_proc->tsk->pid] = ds_counter.elapsed_sec;
+							ds_status.ipc_timeout_usec[t->to_proc->tsk->pid] =
+								ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT;
+						}
+						else{
+							ds_status.ipc_timeout_sec[t->to_proc->tsk->pid] = ds_counter.elapsed_sec + 1;
+							ds_status.ipc_timeout_usec[t->to_proc->tsk->pid] =
+								(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT) - 1000000;
+						}
+					}
+				}
+				break;
+#endif
+#if 1
+			case 's':
+				if(
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+1) == 'y' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+2) == 's' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+3) == 't' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+4) == 'e' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+5) == 'm' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+6) == '_' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+7) == 's' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+8) == 'e' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+9) == 'r' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+10) == 'v' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+11) == 'e' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+12) == 'r'
+				)
+				{
+					if(ds_status.tgid[proc->tsk->pid] != ds_status.tgid[t->to_proc->tsk->pid]){
+						ds_status.type[t->to_proc->tsk->pid] = DS_SRT_UI_CLIENT_TASK;
+						if(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT < 1000000){
+							ds_status.ipc_timeout_sec[t->to_proc->tsk->pid] = ds_counter.elapsed_sec;
+							ds_status.ipc_timeout_usec[t->to_proc->tsk->pid] =
+								ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT;
+						}
+						else{
+							ds_status.ipc_timeout_sec[t->to_proc->tsk->pid] = ds_counter.elapsed_sec + 1;
+							ds_status.ipc_timeout_usec[t->to_proc->tsk->pid] =
+								(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT) - 1000000;
+						}
+					}
+				}
+				break;
+#endif
+#if 0
+			case 'S':
+				if(
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+1) == 'u' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+2) == 'r' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+3) == 'f' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+4) == 'a' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+5) == 'c' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+6) == 'e' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+7) == 'F' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+8) == 'l' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+9) == 'i' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+10) == 'n' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+11) == 'g' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+12) == 'e' &&
+					*(ds_status.tg_owner_comm[proc->tsk->pid]+13) == 'r'
+				)
+				{
+					if(ds_status.tgid[proc->tsk->pid] != ds_status.tgid[t->to_proc->tsk->pid]){
+						ds_status.type[t->to_proc->tsk->pid] = DS_SRT_UI_CLIENT_TASK;
+						if(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT < 1000000){
+							ds_status.ipc_timeout_sec[t->to_proc->tsk->pid] = ds_counter.elapsed_sec;
+							ds_status.ipc_timeout_usec[t->to_proc->tsk->pid] =
+								ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT;
+						}
+						else{
+							ds_status.ipc_timeout_sec[t->to_proc->tsk->pid] = ds_counter.elapsed_sec + 1;
+							ds_status.ipc_timeout_usec[t->to_proc->tsk->pid] =
+								(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT) - 1000000;
+						}
+					}
+				}
+				break;
+#endif
+			default:
+				break;
+		}
+
+		switch(*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+0)){
+#if 0
+			case 'm':
+				if(
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+1) == 'e' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+2) == 'd' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+3) == 'i' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+4) == 'a' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+5) == 's' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+6) == 'e' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+7) == 'r' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+8) == 'v' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+9) == 'e' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+10) == 'r'
+				)
+				{
+					if(ds_status.tgid[proc->tsk->pid] != ds_status.tgid[t->to_proc->tsk->pid]){
+						ds_status.type[proc->pid] = DS_SRT_UI_CLIENT_TASK;
+						if(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT < 1000000){
+							ds_status.ipc_timeout_sec[proc->pid] = ds_counter.elapsed_sec;
+							ds_status.ipc_timeout_usec[proc->pid] =
+								ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT;
+						}
+						else{
+							ds_status.ipc_timeout_sec[proc->pid] = ds_counter.elapsed_sec + 1;
+							ds_status.ipc_timeout_usec[proc->pid] =
+								(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT) - 1000000;
+						}
+					}
+				}
+				break;
+#endif
+#if 1
+			case 's':
+				if(
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+1) == 'y' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+2) == 's' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+3) == 't' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+4) == 'e' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+5) == 'm' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+6) == '_' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+7) == 's' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+8) == 'e' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+9) == 'r' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+10) == 'v' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+11) == 'e' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+12) == 'r'
+				)
+				{
+					if(ds_status.tgid[proc->tsk->pid] != ds_status.tgid[t->to_proc->tsk->pid]){
+						ds_status.type[t->to_proc->tsk->pid] = DS_SRT_UI_CLIENT_TASK;
+						if(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT < 1000000){
+							ds_status.ipc_timeout_sec[proc->pid] = ds_counter.elapsed_sec;
+							ds_status.ipc_timeout_usec[proc->pid] =
+								ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT;
+						}
+						else{
+							ds_status.ipc_timeout_sec[proc->pid] = ds_counter.elapsed_sec + 1;
+							ds_status.ipc_timeout_usec[proc->pid] =
+								(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT) - 1000000;
+						}
+					}
+				}
+				break;
+#endif
+#if 0
+			case 'S':
+				if(
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+1) == 'u' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+2) == 'r' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+3) == 'f' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+4) == 'a' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+5) == 'c' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+6) == 'e' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+7) == 'F' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+8) == 'l' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+9) == 'i' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+10) == 'n' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+11) == 'g' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+12) == 'e' &&
+					*(ds_status.tg_owner_comm[t->to_proc->tsk->pid]+13) == 'r'
+				)
+				{
+					if(ds_status.tgid[proc->tsk->pid] != ds_status.tgid[t->to_proc->tsk->pid]){
+						ds_status.type[t->to_proc->tsk->pid] = DS_SRT_UI_CLIENT_TASK;
+						if(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT < 1000000){
+							ds_status.ipc_timeout_sec[proc->pid] = ds_counter.elapsed_sec;
+							ds_status.ipc_timeout_usec[proc->pid] =
+								ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT;
+						}
+						else{
+							ds_status.ipc_timeout_sec[proc->pid] = ds_counter.elapsed_sec + 1;
+							ds_status.ipc_timeout_usec[proc->pid] =
+								(ds_counter.elapsed_usec + DS_SRT_UI_IPC_TIMEOUT) - 1000000;
+						}
+					}
+				}
+				break;
+#endif
+			default:
+				break;
+		}
+	}
+	/* 20110331 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
+#endif	// }
+
 	if (target_node)
 		binder_inc_node(target_node, 1, 0, NULL);
 
@@ -1627,7 +1845,7 @@ static void binder_transaction(struct binder_proc *proc,
 				       &thread->todo);
 
 			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        node %d u%p -> ref %d desc %d\n",
+					 "		node %d u%p -> ref %d desc %d\n",
 				     node->debug_id, node->ptr, ref->debug_id,
 				     ref->desc);
 		} break;
@@ -1651,7 +1869,7 @@ static void binder_transaction(struct binder_proc *proc,
 				fp->cookie = ref->node->cookie;
 				binder_inc_node(ref->node, fp->type == BINDER_TYPE_BINDER, 0, NULL);
 				binder_debug(BINDER_DEBUG_TRANSACTION,
-					     "        ref %d desc %d -> node %d u%p\n",
+						 "		ref %d desc %d -> node %d u%p\n",
 					     ref->debug_id, ref->desc, ref->node->debug_id,
 					     ref->node->ptr);
 			} else {
@@ -1664,7 +1882,7 @@ static void binder_transaction(struct binder_proc *proc,
 				fp->handle = new_ref->desc;
 				binder_inc_ref(new_ref, fp->type == BINDER_TYPE_HANDLE, NULL);
 				binder_debug(BINDER_DEBUG_TRANSACTION,
-					     "        ref %d desc %d -> ref %d desc %d (node %d)\n",
+						 "		ref %d desc %d -> ref %d desc %d (node %d)\n",
 					     ref->debug_id, ref->desc, new_ref->debug_id,
 					     new_ref->desc, ref->node->debug_id);
 			}
@@ -1703,7 +1921,7 @@ static void binder_transaction(struct binder_proc *proc,
 			}
 			task_fd_install(target_proc, target_fd, file);
 			binder_debug(BINDER_DEBUG_TRANSACTION,
-				     "        fd %ld -> %d\n", fp->handle, target_fd);
+					 "		fd %ld -> %d\n", fp->handle, target_fd);
 			/* TODO: fput? */
 			fp->handle = target_fd;
 		} break;
@@ -1816,6 +2034,11 @@ int binder_thread_write(struct binder_proc *proc, struct binder_thread *thread,
 			    (cmd == BC_INCREFS || cmd == BC_ACQUIRE)) {
 				ref = binder_get_ref_for_node(proc,
 					       binder_context_mgr_node);
+#if defined(CONFIG_MACH_LGE_OMAP3) //LGE_CHANGE [sunggyun.yu@lge.com] 2011-03-19, WBT
+				if (ref == NULL) {
+					return -ENOMEM;
+				}
+#endif
 				if (ref->desc != target) {
 					binder_user_error("binder: %d:"
 						"%d tried to acquire "
@@ -2601,6 +2824,13 @@ static unsigned int binder_poll(struct file *filp,
 
 	mutex_lock(&binder_lock);
 	thread = binder_get_thread(proc);
+#if defined(CONFIG_MACH_LGE_OMAP3) //LGE_CHANGE [sunggyun.yu@lge.com] 2011-03-19, WBT
+	if (thread == NULL) {
+		printk(KERN_ERR "binder_get_thread failed.\n");
+		mutex_unlock(&binder_lock);
+		return 0;
+	}
+#endif
 
 	wait_for_proc_work = thread->transaction_stack == NULL &&
 		list_empty(&thread->todo) && thread->return_error == BR_OK;
@@ -3201,19 +3431,19 @@ static void print_binder_thread(struct seq_file *m,
 	while (t) {
 		if (t->from == thread) {
 			print_binder_transaction(m,
-						 "    outgoing transaction", t);
+						 "	outgoing transaction", t);
 			t = t->from_parent;
 		} else if (t->to_thread == thread) {
 			print_binder_transaction(m,
-						 "    incoming transaction", t);
+						 "	incoming transaction", t);
 			t = t->to_parent;
 		} else {
-			print_binder_transaction(m, "    bad transaction", t);
+			print_binder_transaction(m, "	bad transaction", t);
 			t = NULL;
 		}
 	}
 	list_for_each_entry(w, &thread->todo, entry) {
-		print_binder_work(m, "    ", "    pending transaction", w);
+		print_binder_work(m, "	", "	pending transaction", w);
 	}
 	if (!print_always && m->count == header_pos)
 		m->count = start_pos;
@@ -3242,8 +3472,8 @@ static void print_binder_node(struct seq_file *m, struct binder_node *node)
 	}
 	seq_puts(m, "\n");
 	list_for_each_entry(w, &node->async_todo, entry)
-		print_binder_work(m, "    ",
-				  "    pending async transaction", w);
+		print_binder_work(m, "	",
+				  "	pending async transaction", w);
 }
 
 static void print_binder_ref(struct seq_file *m, struct binder_ref *ref)

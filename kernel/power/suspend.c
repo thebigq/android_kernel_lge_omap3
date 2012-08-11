@@ -23,6 +23,13 @@
 #include <linux/slab.h>
 #include <linux/suspend.h>
 
+#if defined(CONFIG_MACH_LGE_OMAP3)
+#include <plat/omap-pm.h>
+#include <plat/omap_device.h>
+#include <plat/powerdomain.h>
+#include <plat/clockdomain.h>
+#endif
+
 #include "power.h"
 
 const char *const pm_states[PM_SUSPEND_MAX] = {
@@ -126,6 +133,12 @@ void __attribute__ ((weak)) arch_suspend_enable_irqs(void)
 	local_irq_enable();
 }
 
+// LGE_UPDATE_S
+#if defined(CONFIG_WAKE_IRQ_PRINT)
+extern void wakeup_irq_record_reset(void);
+extern void wakeup_irq_record_print(void);
+#endif
+// LGE_UPDATE_E
 /**
  *	suspend_enter - enter the desired system sleep state.
  *	@state:		state to enter
@@ -168,6 +181,11 @@ static int suspend_enter(suspend_state_t state)
 	if (!error) {
 		if (!suspend_test(TEST_CORE))
 			error = suspend_ops->enter(state);
+// LGE_UPDATE_S
+#if defined(CONFIG_WAKE_IRQ_PRINT)
+		wakeup_irq_record_reset();
+#endif
+// LGE_UPDATE_E
 		sysdev_resume();
 	}
 
@@ -200,6 +218,9 @@ int suspend_devices_and_enter(suspend_state_t state)
 {
 	int error;
 	gfp_t saved_mask;
+#if defined(CONFIG_MACH_LGE_OMAP3)
+	struct device l3_dev;
+#endif
 
 	if (!suspend_ops)
 		return -ENOSYS;
@@ -221,11 +242,24 @@ int suspend_devices_and_enter(suspend_state_t state)
 	if (suspend_test(TEST_DEVICES))
 		goto Recover_platform;
 
+#if defined(CONFIG_MACH_LGE_OMAP3)
+	//omap_pm_set_min_bus_tput(&l3_dev, OCP_INITIATOR_AGENT, 100 * 1000 * 4);	// sookyoung.kim
+#endif
+
 	suspend_enter(state);
 
+#if defined(CONFIG_MACH_LGE_OMAP3)
+	//omap_pm_set_min_bus_tput(&l3_dev, OCP_INITIATOR_AGENT, 200 * 1000 * 4);	// sookyoung.kim
+#endif
+	
  Resume_devices:
 	suspend_test_start();
 	dpm_resume_end(PMSG_RESUME);
+// LGE_UPDATE_S
+#if defined(CONFIG_WAKE_IRQ_PRINT)
+	wakeup_irq_record_print();
+#endif 
+// LGE_UPDATE_E
 	suspend_test_finish("resume devices");
 	set_gfp_allowed_mask(saved_mask);
 	resume_console();

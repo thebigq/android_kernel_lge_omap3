@@ -286,6 +286,14 @@ int clk_register(struct clk *clk)
 }
 EXPORT_SYMBOL(clk_register);
 
+/*LGE_CHANGE_E, mg.jeong@lge.com, 2011-01-, Reason*/
+struct list_head *mg_omap_clk_clocks_list_head(void)
+{                                                   
+	    return &clocks;                                 
+}                                                   
+EXPORT_SYMBOL(mg_omap_clk_clocks_list_head);        
+/*LGE_CHANGE_E, mg.jeong@lge.com, 2011-01-, Reason*/
+
 void clk_unregister(struct clk *clk)
 {
 	if (clk == NULL || IS_ERR(clk))
@@ -334,6 +342,7 @@ struct clk *omap_clk_get_by_name(const char *name)
 
 	return ret;
 }
+EXPORT_SYMBOL(omap_clk_get_by_name);
 
 /*
  * Low level helpers

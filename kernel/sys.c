@@ -372,9 +372,10 @@ SYSCALL_DEFINE4(reboot, int, magic1, int, magic2, unsigned int, cmd,
 	int ret = 0;
 
 	/* We only trust the superuser with rebooting the system. */
-	if (!capable(CAP_SYS_BOOT))
-		return -EPERM;
-
+/* [2011.04.08] kim.donghyuk@lge.com - fix AT%RESTART [START] */
+//	if (!capable(CAP_SYS_BOOT))
+//		return -EPERM;
+/* [2011.04.08] kim.donghyuk@lge.com - fix AT%RESTART [END] */
 	/* For safety, we require "magic" arguments. */
 	if (magic1 != LINUX_REBOOT_MAGIC1 ||
 	    (magic2 != LINUX_REBOOT_MAGIC2 &&

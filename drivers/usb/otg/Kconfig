@@ -49,8 +49,6 @@ config USB_ULPI
 	  Enable this to support ULPI connected USB OTG transceivers which
 	  are likely found on embedded boards.
 
-	  The only chip currently supported is NXP's ISP1504
-
 config TWL4030_USB
 	tristate "TWL4030 USB Transceiver Driver"
 	depends on TWL4030_CORE && REGULATOR_TWL4030
@@ -61,6 +59,15 @@ config TWL4030_USB
 	  This transceiver supports high and full speed devices plus,
 	  in host mode, low speed.
 
+config TWL6030_USB
+	tristate "TWL6030 USB Transceiver Driver"
+	depends on TWL4030_CORE
+	select USB_OTG_UTILS
+	help
+	  Enable this to support the USB OTG transceiver on TWL6030
+	  family chips. this tranciever has the VBUS and ID GND and OTG
+	  event capability. This tranciever does not have the USB PHY like TWL4030.
+
 config NOP_USB_XCEIV
 	tristate "NOP USB Transceiver Driver"
 	select USB_OTG_UTILS
@@ -68,5 +75,16 @@ config NOP_USB_XCEIV
 	 this driver is to be used by all the usb transceiver which are either
 	 built-in with usb ip or which are autonomous and doesn't require any
 	 phy programming such as ISP1x04 etc.
+
+
+# LGE_CHANGE_S [jaeho.cho@lge.com] 2011-07-19, Autorun Support
+config USB_SUPPORT_LGE_ANDROID_AUTORUN
+	boolean "Autorun support in LGE Android model(common)"
+	depends on USB_GADGET
+	help
+	  It supports Autorun feature in LGE Android model if it is needed.
+
+	default n
+# LGE_CHANGE_S [jaeho.cho@lge.com] 2011-07-19, Autorun Support
 
 endif # USB || OTG

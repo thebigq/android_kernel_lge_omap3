@@ -36,6 +36,15 @@
 	.store = power_supply_store_property,				\
 }
 
+#if defined(CONFIG_LGE_PSEUDO_BATT_MODE) || defined(CONFIG_LGE_BATT_THERM_LAB3_SCENARIO) || defined(CONFIG_LGE_BLOCK_CHARGING_MODE)
+#define POWER_SUPPLY_ATTR_RW(_name)					\
+{									\
+	.attr = { .name = #_name, .mode = 0664},					\
+	.show = power_supply_show_property,				\
+	.store = power_supply_store_property,				\
+}
+#endif 
+
 static struct device_attribute power_supply_attrs[];
 
 static ssize_t power_supply_show_property(struct device *dev,
@@ -108,12 +117,21 @@ static ssize_t power_supply_store_property(struct device *dev,
 	union power_supply_propval value;
 	long long_val;
 
+#ifdef CONFIG_LGE_PSEUDO_BATT_MODE
+	if( off == POWER_SUPPLY_PROP_PSEUDO_BATT )
+		value.strval = buf;
+	else
+	{
+#endif 
 	/* TODO: support other types than int */
 	ret = strict_strtol(buf, 10, &long_val);
 	if (ret < 0)
 		return ret;
 
 	value.intval = long_val;
+#ifdef CONFIG_LGE_PSEUDO_BATT_MODE
+	}
+#endif 
 
 	ret = psy->set_property(psy, off, &value);
 	if (ret < 0)
@@ -164,6 +182,15 @@ static struct device_attribute power_supply_attrs[] = {
 	POWER_SUPPLY_ATTR(time_to_full_now),
 	POWER_SUPPLY_ATTR(time_to_full_avg),
 	POWER_SUPPLY_ATTR(type),
+#ifdef CONFIG_LGE_PSEUDO_BATT_MODE
+	POWER_SUPPLY_ATTR_RW(pseudo_batt),
+#endif 
+#ifdef CONFIG_LGE_BATT_THERM_LAB3_SCENARIO
+	POWER_SUPPLY_ATTR_RW(batt_therm_state),
+#endif
+#ifdef CONFIG_LGE_BLOCK_CHARGING_MODE
+	POWER_SUPPLY_ATTR_RW(block_charging),
+#endif
 	/* Properties of type `const char *' */
 	POWER_SUPPLY_ATTR(model_name),
 	POWER_SUPPLY_ATTR(manufacturer),

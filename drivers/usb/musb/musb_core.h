@@ -71,8 +71,9 @@ struct musb_ep;
 #include "musb_gadget.h"
 #include <linux/usb/hcd.h>
 #include "musb_host.h"
-
-
+#ifdef CONFIG_USB_SUPPORT_LGE_ANDROID_AUTORUN
+#include <linux/switch.h>
+#endif
 
 #ifdef CONFIG_USB_MUSB_OTG
 
@@ -332,6 +333,11 @@ struct musb {
 	struct clk		*clock;
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
+#ifdef CONFIG_USB_SUPPORT_LGE_ANDROID_AUTORUN
+	struct work_struct switch_work;
+	enum usb_device_state usb_state;
+	struct switch_dev sdev_autorun;
+#endif
 	u16			hwvers;
 
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
@@ -359,6 +365,7 @@ struct musb {
 	struct timer_list	otg_timer;
 #endif
 
+	struct notifier_block	nb;
 	/* called with IRQs blocked; ON/nonzero implies starting a session,
 	 * and waiting at least a_wait_vrise_tmout.
 	 */
@@ -472,7 +479,9 @@ struct musb_context_registers {
 
 #if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
     defined(CONFIG_ARCH_OMAP4)
-	u32 otg_sysconfig, otg_forcestandby;
+	u32 otg_sysconfig, otg_forcestandby, otg_interfacesel;
+	u32 ctl_dev_conf;
+	u32 usbotg_control;
 #endif
 	u8 power;
 	u16 intrtxe, intrrxe;
@@ -491,12 +500,29 @@ extern void musb_platform_save_context(struct musb *musb,
 		struct musb_context_registers *musb_context);
 extern void musb_platform_restore_context(struct musb *musb,
 		struct musb_context_registers *musb_context);
+
 #else
 #define musb_platform_save_context(m, x)	do {} while (0)
 #define musb_platform_restore_context(m, x)	do {} while (0)
 #endif
 
 #endif
+
+#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3) || \
+    defined(CONFIG_ARCH_OMAP4)
+
+extern int musb_notifier_call(struct notifier_block *nb,
+		unsigned long event, void *unused);
+extern void phy_clk_set(struct musb *musb, u8 on);
+
+#else
+#define musb_notifier_call(m,x,y)		do {} while (0)
+#define phy_clk_set(m, x)			do {} while (0)
+#endif
+
+// LGE_UPDATE_S 20110311 [jaejoong.kim@lge.com] modify for usb interrupt bug
+void musb_save_context(struct musb *musb);
+// LGE_UPDATE_S 20110311 [jaejoong.kim@lge.com] modify for usb interrupt bug
 
 static inline void musb_set_vbus(struct musb *musb, int is_on)
 {
@@ -612,7 +638,7 @@ extern int musb_platform_get_vbus_status(struct musb *musb);
 #define musb_platform_get_vbus_status(x)	0
 #endif
 
-extern int __init musb_platform_init(struct musb *musb, void *board_data);
+extern int __init musb_platform_init(struct musb *musb);
 extern int musb_platform_exit(struct musb *musb);
 
 #endif	/* __MUSB_CORE_H__ */

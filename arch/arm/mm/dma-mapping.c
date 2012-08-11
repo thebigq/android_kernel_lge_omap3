@@ -30,6 +30,7 @@ static u64 get_coherent_dma_mask(struct device *dev)
 
 	if (dev) {
 		mask = dev->coherent_dma_mask;
+		mask = (mask - 1) | mask;
 
 		/*
 		 * Sanity check the DMA mask - it must be non-zero, and
@@ -508,6 +509,12 @@ void ___dma_page_dev_to_cpu(struct page *page, unsigned long off,
 		outer_inv_range(paddr, paddr + size);
 
 	dma_cache_maint_page(page, off, size, dir, dmac_unmap_area);
+
+	/*
+	 * Mark the D-cache clean for this page to avoid extra flushing.
+	 */
+	if (dir != DMA_TO_DEVICE && off == 0 && size >= PAGE_SIZE)
+		set_bit(PG_dcache_clean, &page->flags);
 }
 EXPORT_SYMBOL(___dma_page_dev_to_cpu);
 

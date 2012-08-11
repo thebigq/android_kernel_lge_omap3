@@ -27,6 +27,10 @@
 #ifndef __ARCH_ARM_MACH_OMAP_COMMON_H
 #define __ARCH_ARM_MACH_OMAP_COMMON_H
 
+// 20110425 prime@sdcmicro.com Patch for INTC autoidle management to make sure it is done in atomic operation with interrupt disabled [START]
+#include <linux/notifier.h>
+// 20110425 prime@sdcmicro.com Patch for INTC autoidle management to make sure it is done in atomic operation with interrupt disabled [END]
+
 #include <plat/i2c.h>
 
 struct sys_timer;
@@ -45,7 +49,9 @@ struct omap_globals {
 	unsigned long   sdrc;           /* SDRAM Controller */
 	unsigned long   sms;            /* SDRAM Memory Scheduler */
 	unsigned long   ctrl;           /* System Control Module */
+	unsigned long   ctrl_pad;	/* PAD Control Module */
 	unsigned long   prm;            /* Power and Reset Management */
+	unsigned long   prcm_mpu;	/* Local MPU PRM */
 	unsigned long   cm;             /* Clock Management */
 	unsigned long   cm2;
 	unsigned long	uart1_phys;
@@ -86,5 +92,25 @@ void omap2_set_globals_uart(struct omap_globals *);
 		udelay(1);					\
 	}							\
 })
+
+extern struct device *omap2_get_mpuss_device(void);
+extern struct device *omap2_get_iva_device(void);
+extern struct device *omap2_get_l3_device(void);
+extern struct device *omap4_get_dsp_device(void);
+
+// 20110425 prime@sdcmicro.com Patch for INTC autoidle management to make sure it is done in atomic operation with interrupt disabled [START]
+#if 1
+
+#define OMAP_IDLE_START	1
+#define OMAP_IDLE_END	2
+
+/* idle notifications late in the idle path (atomic, interrupts disabled) */
+extern void omap_idle_notifier_register(struct notifier_block *n);
+extern void omap_idle_notifier_unregister(struct notifier_block *n);
+extern void omap_idle_notifier_start(void);
+extern void omap_idle_notifier_end(void);
+
+#endif
+// 20110425 prime@sdcmicro.com Patch for INTC autoidle management to make sure it is done in atomic operation with interrupt disabled [END]
 
 #endif /* __ARCH_ARM_MACH_OMAP_COMMON_H */

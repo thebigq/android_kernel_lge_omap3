@@ -25,14 +25,25 @@ struct android_usb_function {
 	char			*name;
 	int 			(*bind_config)(struct usb_configuration *c);
 };
-
+#ifdef CONFIG_LGE_USB_GADGET_FUNC_BIND_ONLY_INIT
+typedef enum {
+    ACM_MODEM,
+	ECM,
+	RMNET,
+	NDIS,
+	RNDIS,
+	MTP,
+	UMS,
+	CD_ROM,
+	FACTORY,
+#ifdef CONFIG_LGE_USB_GADGET_LLDM_DRIVER
+	LLDM,
+#endif	
+	MAX_FUNCTION,
+}unique_usb_function;
+#endif
 struct android_usb_product {
-	/* Vendor ID for this set of functions.
-	 * Default vendor_id in platform data will be used if this is zero.
-	 */
-	__u16 vendor_id;
-
-	/* Product ID for this set of functions. */
+	/* Default product ID. */
 	__u16 product_id;
 
 	/* List of function names associated with this product.
@@ -41,6 +52,9 @@ struct android_usb_product {
 	 */
 	int num_functions;
 	char **functions;
+#ifdef CONFIG_LGE_USB_GADGET_FUNC_BIND_ONLY_INIT
+			unique_usb_function unique_function;
+#endif	
 };
 
 struct android_usb_platform_data {
@@ -73,6 +87,9 @@ struct android_usb_platform_data {
 	 */
 	int num_functions;
 	char **functions;
+#ifdef CONFIG_LGE_USB_GADGET_FUNC_BIND_ONLY_INIT
+	unique_usb_function unique_function;
+#endif
 };
 
 /* Platform data for "usb_mass_storage" driver. */

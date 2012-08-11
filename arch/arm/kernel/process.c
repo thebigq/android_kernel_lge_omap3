@@ -134,6 +134,26 @@ static void default_idle(void)
 void (*pm_idle)(void) = default_idle;
 EXPORT_SYMBOL(pm_idle);
 
+static void do_nothing(void *unused)
+{
+}
+
+/*
+ * cpu_idle_wait - Used to ensure that all the CPUs discard old value of
+ * pm_idle and update to new pm_idle value. Required while changing pm_idle
+ * handler on SMP systems.
+ *
+ * Caller must have changed pm_idle to the new value before the call. Old
+ * pm_idle value will not be used by any CPU after the return of this function.
+ */
+void cpu_idle_wait(void)
+{
+	smp_mb();
+	/* kick all the CPUs so that they exit out of pm_idle */
+	smp_call_function(do_nothing, NULL, 1);
+}
+EXPORT_SYMBOL_GPL(cpu_idle_wait);
+
 /*
  * The idle thread, has rather strange semantics for calling pm_idle,
  * but this is what x86 does and we need to do the same, so that
@@ -191,6 +211,12 @@ __setup("reboot=", reboot_setup);
 
 void machine_halt(void)
 {
+#ifdef CONFIG_SMP
+	smp_send_stop();
+#endif
+	printk(KERN_EMERG "System halted, OK to turn off power\n");
+	local_irq_disable();
+	while (1) ;
 }
 
 
@@ -335,8 +361,9 @@ void __show_regs(struct pt_regs *regs)
 		printk("Control: %08x%s\n", ctrl, buf);
 	}
 #endif
-
+#if 0 //sunggyun.yu@lge.com for infinite data abort
 	show_extra_register_data(regs, 128);
+#endif
 }
 
 void show_regs(struct pt_regs * regs)

@@ -843,6 +843,7 @@ static int snd_pcm_pre_start(struct snd_pcm_substream *substream, int state)
 	if (runtime->status->state != SNDRV_PCM_STATE_PREPARED)
 		return -EBADFD;
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
+	    !substream->hw_no_buffer &&
 	    !snd_pcm_playback_data(substream))
 		return -EPIPE;
 	runtime->trigger_master = substream;
@@ -1411,6 +1412,9 @@ static int snd_pcm_drop(struct snd_pcm_substream *substream);
  * After this call, all streams are supposed to be either SETUP or DRAINING
  * (capture only) state.
  */
+/* [2011.03.25] jung.chanmin@lge.com - bt sound competition */
+extern int cur_mode_check;
+/* [2011.03.25] jung.chanmin@lge.com - bt sound competition */
 static int snd_pcm_drain(struct snd_pcm_substream *substream,
 			 struct file *file)
 {
@@ -1484,7 +1488,17 @@ static int snd_pcm_drain(struct snd_pcm_substream *substream,
 		snd_pcm_stream_unlock_irq(substream);
 		up_read(&snd_pcm_link_rwsem);
 		snd_power_unlock(card);
-		tout = schedule_timeout(10 * HZ);
+/* [2011.03.25] jung.chanmin@lge.com - bt sound competition */
+	//	if ((cur_mode_check==11)||(cur_mode_check==10))
+//		if((pcm_hw_enable)||(cur_mode_check==11)||(cur_mode_check==10))
+		if(cur_mode_check == 0)
+		{
+			printk("BT CALL is working=%d\n",cur_mode_check);
+			tout = schedule_timeout(1 * HZ);
+		}
+		else
+/* [2011.03.25] jung.chanmin@lge.com - bt sound competition */
+			tout = schedule_timeout(10 * HZ);
 		snd_power_lock(card);
 		down_read(&snd_pcm_link_rwsem);
 		snd_pcm_stream_lock_irq(substream);
@@ -2022,6 +2036,12 @@ int snd_pcm_open_substream(struct snd_pcm *pcm, int stream,
 	err = snd_pcm_hw_constraints_init(substream);
 	if (err < 0) {
 		snd_printd("snd_pcm_hw_constraints_init failed\n");
+		goto error;
+	}
+
+	if (substream->ops == NULL) {
+		snd_printd("cannot open back end PCMs directly\n");
+		err = -ENODEV;
 		goto error;
 	}
 

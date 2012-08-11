@@ -288,6 +288,8 @@ struct usb_composite_driver {
 	int			(*bind)(struct usb_composite_dev *);
 	int			(*unbind)(struct usb_composite_dev *);
 
+	void			(*disconnect)(struct usb_composite_dev *);
+
 	/* global suspend hooks */
 	void			(*suspend)(struct usb_composite_dev *);
 	void			(*resume)(struct usb_composite_dev *);
@@ -358,6 +360,9 @@ struct usb_composite_dev {
 	struct switch_dev		sw_connected;
 	/* switch indicating current configuration */
 	struct switch_dev		sw_config;
+	/* used by usb_composite_force_reset to avoid signalling switch changes */
+	bool				mute_switch;
+
 	/* current connected state for sw_connected */
 	bool				connected;
 
@@ -365,6 +370,10 @@ struct usb_composite_dev {
 };
 
 extern int usb_string_id(struct usb_composite_dev *c);
+extern int usb_string_ids_tab(struct usb_composite_dev *c,
+			      struct usb_string *str);
+extern int usb_string_ids_n(struct usb_composite_dev *c, unsigned n);
+
 
 /* messaging utils */
 #define DBG(d, fmt, args...) \

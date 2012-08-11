@@ -24,6 +24,10 @@
 #include <linux/interrupt.h>
 #include <linux/debug_locks.h>
 
+/* 20110331 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+#include <linux/dvs_suite.h>
+/* 20110331 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
+
 /*
  * In the DEBUG case we are using the "NULL fastpath" for mutexes,
  * which forces all calls into the slowpath:
@@ -284,6 +288,9 @@ done:
 void __sched
 mutex_lock_nested(struct mutex *lock, unsigned int subclass)
 {
+    /* 20110331 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+    if(ds_staus.flag_mutex_lock_on_clock_state == 0)
+    /* 20110331 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
 	might_sleep();
 	__mutex_lock_common(lock, TASK_UNINTERRUPTIBLE, subclass, _RET_IP_);
 }

@@ -315,6 +315,24 @@ config SENSORS_TSL2550
 	  This driver can also be built as a module.  If so, the module
 	  will be called tsl2550.
 
+config SENSORS_BH1780
+	tristate "ROHM BH1780GLI ambient light sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the ROHM BH1780GLI
+	  ambient light sensor.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called bh1780gli.
+
+config SENSORS_LIS331DLH
+	tristate "LIS331DLH Accelerometer"
+	default n
+	depends on I2C
+	help
+	 Say yes here if you wish to include the STI Micro
+	 LIS331DLH accelerometer driver.
+
 config SENSORS_AK8975
 	tristate "AK8975 compass support"
 	default n
@@ -322,6 +340,17 @@ config SENSORS_AK8975
 	help
 	  If you say yes here you get support for Asahi Kasei's
 	  orientation sensor AK8975.
+
+config TWL6040_VIB
+	bool "TWL6040 Vibrator"
+	depends on TWL6040_CODEC && ANDROID_TIMED_OUTPUT
+	default n
+
+config CDC_TCXO
+	tristate "Texas Instruments CDC TCXO"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments CDC TCXO CDC3S04
 
 config EP93XX_PWM
 	tristate "EP93xx PWM support"
@@ -360,10 +389,6 @@ config UID_STAT
 	bool "UID based statistics tracking exported to /proc/uid_stat"
 	default n
 
-config IFACE_STAT
-	bool "Persistent interface statistics tracking exported to /proc/iface_stat"
-	default n
-
 config VMWARE_BALLOON
 	tristate "VMware Balloon Driver"
 	depends on X86
@@ -379,6 +404,24 @@ config VMWARE_BALLOON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called vmware_balloon.
+
+config BMP085
+	tristate "BMP085 digital pressure sensor"
+	depends on I2C && SYSFS
+	help
+	  If you say yes here you get support for the Bosch Sensortec
+	  BMP086 digital pressure sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called bmp085.
+
+config LBEE9QMB_RFKILL
+	tristate "Bluetooth power control driver for Murata lbee9qmbc"
+	depends on RFKILL
+	default n
+	---help---
+	 Creates an rfkill entry in sysfs for power control of
+	 Murata lbee9qmbc Bluetooth+WiFi chips.
 
 config WL127X_RFKILL
 	tristate "Bluetooth power control driver for TI wl127x"
@@ -403,9 +446,30 @@ config APANIC_PLABEL
 	 If your platform uses a different flash partition label for storing
  	 crashdumps, enter it here.
 
+# LGE_CHANGE_S, hyun.seungjin@lge.com, 2011-02-23, Move directory from driver/hub to misc
+config GP2AP_PROXIMITY
+	bool "GP2AP_PROXIMITY driver"
+	default y
+	---help---
+	 If you say yes here you get support for the 
+	 Sharp GP2AP Proximity Driver.
+# LGE_CHANGE_E, hyun.seungjin@lge.com, 2011-02-23, Move directory from driver/hub to misc
+
+# prime@sdcmicro.com Merge from 2.6.32 [START]
+	config TSPDRV
+	bool "Immersion Corporation Vibrator Driver(TSPDRV)"
+	default y
+	---help---
+	 TouchSense Kernel Module(Immersion Corporation)
+# prime@sdcmicro.com Merge from 2.6.32 [END]
+
 source "drivers/misc/c2port/Kconfig"
 source "drivers/misc/eeprom/Kconfig"
 source "drivers/misc/cb710/Kconfig"
 source "drivers/misc/iwmc3200top/Kconfig"
+source "drivers/misc/ti-st/Kconfig"
+# LGE_CHANGE_S, ryu.seeyeol@lge.com, 2011-01-28, Porting for Sensor Driver 
+source "drivers/misc/mpu3050/Kconfig"
+# LGE_CHANGE_E, ryu.seeyeol@lge.com, 2011-01-28, Porting for Sensor Driver 
 
 endif # MISC_DEVICES

@@ -192,13 +192,23 @@ int power_supply_register(struct device *parent, struct power_supply *psy)
 	if (rc)
 		goto kobject_set_name_failed;
 
-	rc = device_add(dev);
-	if (rc)
-		goto device_add_failed;
-
+//prime@sdcmicro.com LGE battery patch for GB[START]
+#if 1
 	INIT_WORK(&psy->changed_work, power_supply_changed_work);
 	spin_lock_init(&psy->changed_lock);
 	wake_lock_init(&psy->work_wake_lock, WAKE_LOCK_SUSPEND, "power-supply");
+#endif
+//prime@sdcmicro.com LGE battery patch for GB[END]
+	rc = device_add(dev);
+	if (rc)
+		goto device_add_failed;
+//prime@sdcmicro.com LGE battery patch for GB[START]
+#if 0
+	INIT_WORK(&psy->changed_work, power_supply_changed_work);
+	spin_lock_init(&psy->changed_lock);
+	wake_lock_init(&psy->work_wake_lock, WAKE_LOCK_SUSPEND, "power-supply");
+#endif
+//prime@sdcmicro.com LGE battery patch for GB[END]
 
 	rc = power_supply_create_triggers(psy);
 	if (rc)

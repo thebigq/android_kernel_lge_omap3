@@ -248,6 +248,7 @@
 #define INT_24XX_SDMA_IRQ1	13
 #define INT_24XX_SDMA_IRQ2	14
 #define INT_24XX_SDMA_IRQ3	15
+#define INT_24XX_GPU_IRQ	21
 #define INT_24XX_CAM_IRQ	24
 #define INT_24XX_DSS_IRQ	25
 #define INT_24XX_MAIL_U0_MPU	26
@@ -292,6 +293,7 @@
 #define INT_24XX_USB_IRQ_HGEN	78
 #define INT_24XX_USB_IRQ_HSOF	79
 #define INT_24XX_USB_IRQ_OTG	80
+#define INT_34XX_UART4_IRQ			80  //2011_01_13 by seunghyun.yi@lge.com for UART4
 #define INT_24XX_MCBSP5_IRQ_TX	81
 #define INT_24XX_MCBSP5_IRQ_RX	82
 #define INT_24XX_MMC_IRQ	83
@@ -402,11 +404,19 @@
 #endif
 #define TWL6030_IRQ_END		(TWL6030_IRQ_BASE + TWL6030_BASE_NR_IRQS)
 
+#define TWL6040_CODEC_IRQ_BASE	TWL6030_IRQ_END
+#ifdef CONFIG_TWL6040_CODEC
+#define TWL6040_CODEC_NR_IRQS	6
+#else
+#define TWL6040_CODEC_NR_IRQS	0
+#endif
+#define TWL6040_CODEC_IRQ_END	(TWL6040_CODEC_IRQ_BASE + TWL6040_CODEC_NR_IRQS)
+
 /* Total number of interrupts depends on the enabled blocks above */
-#if (TWL4030_GPIO_IRQ_END > TWL6030_IRQ_END)
+#if (TWL4030_GPIO_IRQ_END > TWL6040_CODEC_IRQ_END)
 #define TWL_IRQ_END 		TWL4030_GPIO_IRQ_END
 #else
-#define TWL_IRQ_END		TWL6030_IRQ_END
+#define TWL_IRQ_END		TWL6040_CODEC_IRQ_END
 #endif
 
 #define NR_IRQS			TWL_IRQ_END
@@ -422,8 +432,12 @@ extern int omap_irq_pending(void);
 void omap_intc_save_context(void);
 void omap_intc_restore_context(void);
 void omap3_intc_suspend(void);
+// 20110425 prime@sdcmicro.com Patch for INTC autoidle management to make sure it is done in atomic operation with interrupt disabled [START]
+#if 0
 void omap3_intc_prepare_idle(void);
 void omap3_intc_resume_idle(void);
+#endif
+// 20110425 prime@sdcmicro.com Patch for INTC autoidle management to make sure it is done in atomic operation with interrupt disabled [END]
 #endif
 
 #include <mach/hardware.h>

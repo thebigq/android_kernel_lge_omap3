@@ -73,6 +73,17 @@ obj-$(CONFIG_VIDEO_OV7670) 	+= ov7670.o
 obj-$(CONFIG_VIDEO_TCM825X) += tcm825x.o
 obj-$(CONFIG_VIDEO_TVEEPROM) += tveeprom.o
 obj-$(CONFIG_VIDEO_MT9V011) += mt9v011.o
+obj-$(CONFIG_VIDEO_IMX046) += imx046.o
+obj-$(CONFIG_VIDEO_LV8093) += lv8093.o
+obj-$(CONFIG_VIDEO_IMX072) += imx072.o
+obj-$(CONFIG_VIDEO_IMX072) += dw9716.o
+obj-$(CONFIG_VIDEO_IMX072) += rt8515.o
+obj-$(CONFIG_VIDEO_YACD5B1S) += yacd5b1s.o
+obj-$(CONFIG_VIDEO_LV8093) += lv8093.o
+
+obj-y += isp/
+
+obj-$(CONFIG_VIDEO_OMAP3) += omap34xxcam.o
 
 obj-$(CONFIG_SOC_CAMERA_MT9M001)	+= mt9m001.o
 obj-$(CONFIG_SOC_CAMERA_MT9M111)	+= mt9m111.o
@@ -177,9 +188,11 @@ obj-$(CONFIG_VIDEO_SAA7164)     += saa7164/
 
 obj-$(CONFIG_VIDEO_IR_I2C)  += ir-kbd-i2c.o
 
-obj-$(CONFIG_ARCH_DAVINCI)	+= davinci/
+obj-$(CONFIG_DMM_OMAP)  += dmm/
+obj-$(CONFIG_TILER_OMAP)  += tiler/
 
 obj-$(CONFIG_ARCH_OMAP)	+= omap/
+obj-$(CONFIG_VIDEO_OMAP_GFX) += omapgfx/
 
 EXTRA_CFLAGS += -Idrivers/media/dvb/dvb-core
 EXTRA_CFLAGS += -Idrivers/media/dvb/frontends

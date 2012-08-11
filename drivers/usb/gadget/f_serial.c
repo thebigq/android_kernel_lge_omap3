@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
+#include <linux/usb/android_composite.h>
 
 #include "u_serial.h"
 #include "gadget_chips.h"
@@ -56,8 +57,10 @@ static struct usb_interface_descriptor gser_interface_desc __initdata = {
 	/* .bInterfaceNumber = DYNAMIC */
 	.bNumEndpoints =	2,
 	.bInterfaceClass =	USB_CLASS_VENDOR_SPEC,
-	.bInterfaceSubClass =	0,
-	.bInterfaceProtocol =	0,
+	// LGE_UPDATE 20110308 [jaejoong.kim@lge.com] matching for LG Android Net
+	// Driver for B_DCM GB
+	.bInterfaceSubClass =	USB_CLASS_VENDOR_SPEC,	//0,
+	.bInterfaceProtocol =	USB_CLASS_VENDOR_SPEC,	//0,
 	/* .iInterface = DYNAMIC */
 };
 
@@ -133,6 +136,20 @@ static int gser_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 
 	/* we know alt == 0, so this is an activation or a reset */
 
+//20110308 yongman.kwon@lge.com [LS855] com port open [START]
+#if 1
+	if (gser->port.in->driver_data) {
+		DBG(cdev, "reset generic ttyGS%d\n", gser->port_num);
+		gserial_disconnect(&gser->port);
+	}else{
+		DBG(cdev, "activate generic ttyGS%d\n", gser->port_num);
+	}
+	
+	gser->port.in_desc = ep_choose(cdev->gadget,
+			gser->hs.in, gser->fs.in);
+	gser->port.out_desc = ep_choose(cdev->gadget,
+			gser->hs.out, gser->fs.out);
+#else
 	if (gser->port.in->driver_data) {
 		DBG(cdev, "reset generic ttyGS%d\n", gser->port_num);
 		gserial_disconnect(&gser->port);
@@ -143,7 +160,11 @@ static int gser_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 		gser->port.out_desc = ep_choose(cdev->gadget,
 				gser->hs.out, gser->fs.out);
 	}
+#endif	
+//20110308 yongman.kwon@lge.com [LS855] com port open [END]
+
 	gserial_connect(&gser->port, gser->port_num);
+	
 	return 0;
 }
 
@@ -265,7 +286,11 @@ int __init gser_bind_config(struct usb_configuration *c, u8 port_num)
 	/* REVISIT might want instance-specific strings to help
 	 * distinguish instances ...
 	 */
-
+	
+	//LGE_UPDATE_S 20110122 jaejoong.kim@lge.com usb porting for B project GB
+	printk("gser_bind_config, port_num :%d", port_num);
+	//LGE_UPDATE_E 20110122 jaejoong.kim@lge.com usb porting for B project GB
+	
 	/* maybe allocate device-global string ID */
 	if (gser_string_defs[0].id == 0) {
 		status = usb_string_id(c->cdev);
@@ -288,8 +313,41 @@ int __init gser_bind_config(struct usb_configuration *c, u8 port_num)
 	gser->port.func.set_alt = gser_set_alt;
 	gser->port.func.disable = gser_disable;
 
+//20110324 yongman.kwon@lge.com [LS855] change default setting for LG Driver [START]
+	/* start disabled */
+	gser->port.func.disabled = 0;
+//20110324 yongman.kwon@lge.com [LS855] change default setting for LG Driverl [END]
+
 	status = usb_add_function(c, &gser->port.func);
 	if (status)
 		kfree(gser);
 	return status;
 }
+
+//LGE_UPDATE_S 20110122 jaejoong.kim@lge.com usb porting for B project GB
+#ifdef CONFIG_LGE_ANDROID_USB_DIAG
+int gser_function_bind_config(struct usb_configuration *c)
+{
+	int ret = gser_bind_config(c, 1);
+//kernel panic 	if (ret == 0)
+//kernel panic 		gserial_setup(c->cdev->gadget, 1);
+	return ret;
+}
+
+static struct android_usb_function acm_function = {
+	.name = "gser",
+	.bind_config = gser_function_bind_config,
+};
+
+static int __init init(void)
+{
+	printk(KERN_INFO "f_serial init\n");
+	android_register_function(&acm_function);
+	return 0;
+}
+module_init(init);
+
+#endif /* CONFIG_USB_ANDROID_ACM */
+//LGE_UPDATE_E 20110122 jaejoong.kim@lge.com usb porting for B project GB
+
+

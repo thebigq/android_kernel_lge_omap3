@@ -44,6 +44,7 @@ g_printer-objs			:= printer.o
 g_cdc-objs			:= cdc2.o
 g_multi-objs			:= multi.o
 g_hid-objs			:= hid.o
+g_dbgp-objs			:= dbgp.o
 g_nokia-objs			:= nokia.o
 g_webcam-objs			:= webcam.o
 
@@ -52,7 +53,6 @@ obj-$(CONFIG_USB_AUDIO)		+= g_audio.o
 obj-$(CONFIG_USB_ETH)		+= g_ether.o
 obj-$(CONFIG_USB_GADGETFS)	+= gadgetfs.o
 obj-$(CONFIG_USB_FUNCTIONFS)	+= g_ffs.o
-obj-$(CONFIG_USB_ETH_FUNCTIONFS)	+= g_eth_ffs.o
 obj-$(CONFIG_USB_FILE_STORAGE)	+= g_file_storage.o
 obj-$(CONFIG_USB_MASS_STORAGE)	+= g_mass_storage.o
 obj-$(CONFIG_USB_G_SERIAL)	+= g_serial.o
@@ -60,14 +60,22 @@ obj-$(CONFIG_USB_G_PRINTER)	+= g_printer.o
 obj-$(CONFIG_USB_MIDI_GADGET)	+= g_midi.o
 obj-$(CONFIG_USB_CDC_COMPOSITE) += g_cdc.o
 obj-$(CONFIG_USB_G_HID)		+= g_hid.o
+obj-$(CONFIG_USB_G_DBGP)	+= g_dbgp.o
 obj-$(CONFIG_USB_G_MULTI)	+= g_multi.o
 obj-$(CONFIG_USB_G_NOKIA)	+= g_nokia.o
 obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
 obj-$(CONFIG_USB_ANDROID)	+= android.o
-obj-$(CONFIG_USB_ANDROID_ACM)	+= f_acm.o u_serial.o
-obj-$(CONFIG_USB_ANDROID_ADB)	+= f_adb.o
-obj-$(CONFIG_USB_ANDROID_MASS_STORAGE)	+= f_mass_storage.o
-obj-$(CONFIG_USB_ANDROID_MTP)	+= f_mtp.o
+# LGE_UPDATE_S 20110124 jaejoong.kim@lge.com This order is followed by PID:61D7
+# RNDIS / ACM / DIAG / NMEA / UMS / ADB
 obj-$(CONFIG_USB_ANDROID_RNDIS)	+= f_rndis.o u_ether.o
-obj-$(CONFIG_USB_ANDROID_ACCESSORY)	+= f_accessory.o
+obj-$(CONFIG_USB_ANDROID_ACM)	+= f_acm.o u_serial.o
+obj-$(CONFIG_LGE_ANDROID_USB_DIAG)	+= f_serial.o
+obj-$(CONFIG_LGE_USB_GADGET_NDIS_DRIVER) += f_ecm.o u_ether.o
+#obj-$(CONFIG_LGE_ANDROID_USB_NMEA)	+= f_nmea.o
+obj-$(CONFIG_USB_ANDROID_MASS_STORAGE)	+= f_mass_storage.o
+obj-$(CONFIG_USB_ANDROID_ADB)	+= f_adb.o
+obj-$(CONFIG_USB_SUPPORT_LGE_ANDROID_AUTORUN)	+= f_auto_run.o
+obj-$(CONFIG_USB_ANDROID_MTP)	+= f_mtp.o
+# LGE_UPDATE_S 20110124 jaejoong.kim@lge.com usb porting B-Project GB
+# LGE_UPDATE_E
 

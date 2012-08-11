@@ -22,6 +22,7 @@
 #include <linux/scatterlist.h>
 #include <linux/log2.h>
 #include <linux/regulator/consumer.h>
+#include <linux/pm_runtime.h>
 #include <linux/wakelock.h>
 
 #include <linux/mmc/card.h>
@@ -60,6 +61,7 @@ int mmc_assume_removable;
 #else
 int mmc_assume_removable = 1;
 #endif
+EXPORT_SYMBOL(mmc_assume_removable);
 module_param_named(removable, mmc_assume_removable, bool, 0644);
 MODULE_PARM_DESC(
 	removable,
@@ -305,7 +307,11 @@ void mmc_set_data_timeout(struct mmc_data *data, const struct mmc_card *card)
 			 * The limit is really 250 ms, but that is
 			 * insufficient for some crappy cards.
 			 */
+#if 1//def CONFIG_LGE_MMC_WORKAROUND//LGE_CHANGES
+			limit_us = 500000;
+#else
 			limit_us = 300000;
+#endif
 		else
 			limit_us = 100000;
 
@@ -579,9 +585,8 @@ int mmc_host_lazy_disable(struct mmc_host *host)
 		return 0;
 
 	if (host->disable_delay) {
-		mmc_schedule_delayed_work(&host->disable,
+		return queue_delayed_work(workqueue, &host->disable,
 				msecs_to_jiffies(host->disable_delay));
-		return 0;
 	} else
 		return mmc_host_do_disable(host, 1);
 }
@@ -656,12 +661,33 @@ void mmc_set_bus_mode(struct mmc_host *host, unsigned int mode)
 }
 
 /*
+ * Change data bus width and DDR mode of a host.
+ */
+void mmc_set_bus_width_ddr(struct mmc_host *host, unsigned int width, int ddr)
+{
+	host->ios.bus_width = width;
+// prime@sdcmicro.com MMC_DDR_MODE was replaced with MMC_1_8V_DDR_MODE and MMC_1_2V_DDR_MODE since it's duplicated [START]
+#if 0
+	host->ios.ddr = ddr ? MMC_DDR_MODE : MMC_SDR_MODE;
+#else
+	host->ios.ddr = ddr;
+#endif
+// prime@sdcmicro.com MMC_DDR_MODE was replaced with MMC_1_8V_DDR_MODE and MMC_1_2V_DDR_MODE since it's duplicated [END]
+	mmc_set_ios(host);
+}
+
+/*
  * Change data bus width of a host.
  */
 void mmc_set_bus_width(struct mmc_host *host, unsigned int width)
 {
-	host->ios.bus_width = width;
-	mmc_set_ios(host);
+// prime@sdcmicro.com Make sure correct value is used for SDR mode [START]
+#if 0
+	mmc_set_bus_width_ddr(host, width, 0);
+#else
+	mmc_set_bus_width_ddr(host, width, MMC_SDR_MODE);
+#endif
+// prime@sdcmicro.com Make sure correct value is used for SDR mode [END]
 }
 
 /**
@@ -884,7 +910,11 @@ void mmc_set_timing(struct mmc_host *host, unsigned int timing)
  * If a host does all the power sequencing itself, ignore the
  * initial MMC_POWER_UP stage.
  */
+#if 1//def CONFIG_LGE_MMC_WORKAROUND//LGE_CHANGES
+void mmc_power_up(struct mmc_host *host)
+#else
 static void mmc_power_up(struct mmc_host *host)
+#endif
 {
 	int bit;
 
@@ -907,11 +937,14 @@ static void mmc_power_up(struct mmc_host *host)
 	host->ios.timing = MMC_TIMING_LEGACY;
 	mmc_set_ios(host);
 
+#if 1//def CONFIG_LGE_MMC_WORKAROUND//LGE_CHANGES
+	printk("%s: mmc power up\n", mmc_hostname(host));
+#endif
 	/*
 	 * This delay should be sufficient to allow the power supply
 	 * to reach the minimum voltage.
 	 */
-	mmc_delay(10);
+	mmc_delay(20);
 
 	host->ios.clock = host->f_min;
 
@@ -922,10 +955,17 @@ static void mmc_power_up(struct mmc_host *host)
 	 * This delay must be at least 74 clock sizes, or 1 ms, or the
 	 * time required to reach a stable voltage.
 	 */
-	mmc_delay(10);
+	mmc_delay(20);
 }
+#if 1//def CONFIG_LGE_MMC_WORKAROUND//LGE_CHANGES
+EXPORT_SYMBOL(mmc_power_up);
+#endif
 
+#if 1//def CONFIG_LGE_MMC_WORKAROUND//LGE_CHANGES
+void mmc_power_off(struct mmc_host *host)
+#else
 static void mmc_power_off(struct mmc_host *host)
+#endif
 {
 	host->ios.clock = 0;
 	host->ios.vdd = 0;
@@ -937,7 +977,13 @@ static void mmc_power_off(struct mmc_host *host)
 	host->ios.bus_width = MMC_BUS_WIDTH_1;
 	host->ios.timing = MMC_TIMING_LEGACY;
 	mmc_set_ios(host);
+#if 1//def CONFIG_LGE_MMC_WORKAROUND//LGE_CHANGES
+	printk("%s: mmc power down\n", mmc_hostname(host));
+#endif
 }
+#if 1//def CONFIG_LGE_MMC_WORKAROUND//LGE_CHANGES
+EXPORT_SYMBOL(mmc_power_off);
+#endif
 
 /*
  * Cleanup when the last reference to the bus operator is dropped.
@@ -1082,6 +1128,21 @@ void mmc_detect_change(struct mmc_host *host, unsigned long delay)
 EXPORT_SYMBOL(mmc_detect_change);
 
 
+int mmc_set_blocklen(struct mmc_card *card, unsigned int blocklen)
+{
+	struct mmc_command cmd;
+
+	if (mmc_card_blockaddr(card) || mmc_card_ddr_mode(card))
+		return 0;
+
+	memset(&cmd, 0, sizeof(struct mmc_command));
+	cmd.opcode = MMC_SET_BLOCKLEN;
+	cmd.arg = blocklen;
+	cmd.flags = MMC_RSP_SPI_R1 | MMC_RSP_R1 | MMC_CMD_AC;
+	return mmc_wait_for_cmd(card->host, &cmd, 5);
+}
+EXPORT_SYMBOL(mmc_set_blocklen);
+
 void mmc_rescan(struct work_struct *work)
 {
 	struct mmc_host *host =
@@ -1103,8 +1164,16 @@ void mmc_rescan(struct work_struct *work)
 
 	mmc_bus_get(host);
 
-	/* if there is a card registered, check whether it is still present */
+	/*
+	 * if there is a _removable_ card registered, check whether it is
+	 * still present
+	 */
+#ifdef CONFIG_TIWLAN_SDIO
 	if ((host->bus_ops != NULL) && host->bus_ops->detect && !host->bus_dead)
+#else
+	if ((host->bus_ops != NULL) && host->bus_ops->detect && !host->bus_dead
+					&& mmc_card_is_removable(host))
+#endif
 		host->bus_ops->detect(host);
 
 	/* If the card was removed the bus will be marked
@@ -1230,37 +1299,45 @@ void mmc_stop_host(struct mmc_host *host)
 	mmc_power_off(host);
 }
 
-void mmc_power_save_host(struct mmc_host *host)
+int mmc_power_save_host(struct mmc_host *host)
 {
+	int ret = 0;
+
 	mmc_bus_get(host);
 
 	if (!host->bus_ops || host->bus_dead || !host->bus_ops->power_restore) {
 		mmc_bus_put(host);
-		return;
+		return -EINVAL;
 	}
 
 	if (host->bus_ops->power_save)
-		host->bus_ops->power_save(host);
+		ret = host->bus_ops->power_save(host);
 
 	mmc_bus_put(host);
 
 	mmc_power_off(host);
+
+	return ret;
 }
 EXPORT_SYMBOL(mmc_power_save_host);
 
-void mmc_power_restore_host(struct mmc_host *host)
+int mmc_power_restore_host(struct mmc_host *host)
 {
+	int ret;
+
 	mmc_bus_get(host);
 
 	if (!host->bus_ops || host->bus_dead || !host->bus_ops->power_restore) {
 		mmc_bus_put(host);
-		return;
+		return -EINVAL;
 	}
 
 	mmc_power_up(host);
-	host->bus_ops->power_restore(host);
+	ret = host->bus_ops->power_restore(host);
 
 	mmc_bus_put(host);
+
+	return ret;
 }
 EXPORT_SYMBOL(mmc_power_restore_host);
 
@@ -1329,9 +1406,19 @@ int mmc_suspend_host(struct mmc_host *host)
 	}
 	mmc_bus_put(host);
 
+// BEGIN : munho.lee@lge.com 2010-12-27
+// MOD: 0013091: SD card stability patch 
+#if 1
+	if (strcmp(mmc_hostname(host), "mmc1")){
+		if (!err)
+			mmc_power_off(host);
+	} else
+		printk("sd card suspend...\n");
+#else
 	if (!err && !(host->pm_flags & MMC_PM_KEEP_POWER))
 		mmc_power_off(host);
-
+#endif
+// END : munho.lee@lge.com 2010-12-27
 	return err;
 }
 
@@ -1356,6 +1443,18 @@ int mmc_resume_host(struct mmc_host *host)
 		if (!(host->pm_flags & MMC_PM_KEEP_POWER)) {
 			mmc_power_up(host);
 			mmc_select_voltage(host, host->ocr);
+			/*
+			 * Tell runtime PM core we just powered up the card,
+			 * since it still believes the card is powered off.
+			 * Note that currently runtime PM is only enabled
+			 * for SDIO cards that are MMC_CAP_POWER_OFF_CARD
+			 */
+			if (mmc_card_sdio(host->card) &&
+				(host->caps & MMC_CAP_POWER_OFF_CARD)) {
+				pm_runtime_disable(&host->card->dev);
+				pm_runtime_set_active(&host->card->dev);
+				pm_runtime_enable(&host->card->dev);
+			}
 		}
 		BUG_ON(!host->bus_ops->resume);
 		err = host->bus_ops->resume(host);
@@ -1428,17 +1527,17 @@ int mmc_pm_notify(struct notifier_block *notify_block,
 }
 #endif
 
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#ifdef CONFIG_TIWLAN_SDIO
 void mmc_set_embedded_sdio_data(struct mmc_host *host,
 				struct sdio_cis *cis,
 				struct sdio_cccr *cccr,
 				struct sdio_embedded_func *funcs,
-				int num_funcs)
+				unsigned int quirks)
 {
-	host->embedded_sdio_data.cis = cis;
+       host->embedded_sdio_data.cis = cis;
 	host->embedded_sdio_data.cccr = cccr;
-	host->embedded_sdio_data.funcs = funcs;
-	host->embedded_sdio_data.num_funcs = num_funcs;
+       host->embedded_sdio_data.funcs = funcs;
+	host->embedded_sdio_data.quirks = quirks;
 }
 
 EXPORT_SYMBOL(mmc_set_embedded_sdio_data);

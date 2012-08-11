@@ -131,7 +131,6 @@
 #include <linux/random.h>
 #include <trace/events/napi.h>
 #include <linux/pci.h>
-#include <linux/iface_stat.h>
 
 #include "net-sysfs.h"
 
@@ -2244,7 +2243,7 @@ static inline void ____napi_schedule(struct softnet_data *sd,
 				     struct napi_struct *napi)
 {
 	list_add_tail(&napi->poll_list, &sd->poll_list);
-	__raise_softirq_irqoff(NET_RX_SOFTIRQ);
+	raise_softirq_irqoff(NET_RX_SOFTIRQ);
 }
 
 #ifdef CONFIG_RPS
@@ -4804,9 +4803,6 @@ static void rollback_registered_many(struct list_head *head)
 	synchronize_net();
 
 	list_for_each_entry(dev, head, unreg_list) {
-		/* Store stats for this device in persistent iface_stat */
-		iface_stat_update(dev);
-
 		/* Shutdown queueing discipline. */
 		dev_shutdown(dev);
 

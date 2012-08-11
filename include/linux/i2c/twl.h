@@ -81,7 +81,9 @@
 #define TWL_MODULE_PM_RECEIVER	TWL4030_MODULE_PM_RECEIVER
 #define TWL_MODULE_RTC		TWL4030_MODULE_RTC
 #define TWL_MODULE_PWM		TWL4030_MODULE_PWM0
+#define TWL6030_MODULE_CHARGER	TWL4030_MODULE_MAIN_CHARGE
 
+#define TWL6030_MODULE_GASGAUGE 0x0B
 #define TWL6030_MODULE_ID0	0x0D
 #define TWL6030_MODULE_ID1	0x0E
 #define TWL6030_MODULE_ID2	0x0F
@@ -91,6 +93,7 @@
 #define BCI_INTR_OFFSET		2
 #define MADC_INTR_OFFSET	3
 #define USB_INTR_OFFSET		4
+#define CHARGERFAULT_INTR_OFFSET 5
 #define BCI_PRES_INTR_OFFSET	9
 #define USB_PRES_INTR_OFFSET	10
 #define RTC_INTR_OFFSET		11
@@ -107,6 +110,7 @@
 #define GASGAUGE_INTR_OFFSET	17
 #define USBOTG_INTR_OFFSET	4
 #define CHARGER_INTR_OFFSET	2
+#define GPADCSW_INTR_OFFSET	1
 #define RSV_INTR_OFFSET		0
 
 /* INT register offsets */
@@ -141,9 +145,31 @@
 #define TWL6030_CHARGER_CTRL_INT_MASK 	0x10
 #define TWL6030_CHARGER_FAULT_INT_MASK 	0x60
 
+#define TWL6030_MMCCTRL			0xEE
+#define VMMC_AUTO_OFF			(0x1 << 3)
+#define SW_FC				(0x1 << 2)
+#define STS_MMC				0x1
+
+#define TWL6030_CFG_INPUT_PUPD3		0xF2
+#define MMC_PU				(0x1 << 3)
+#define MMC_PD				(0x1 << 2)
+
+/* TWL6030 vibrator registers */
+#define TWL6030_VIBCTRL			0x9B
+#define TWL6030_VIBMODE			0x9C
+#define TWL6030_PWM1ON			0xBA
+#define	TWL6030_PWM1OFF			0xBB
+#define TWL6030_PWM2ON			0xBD
+#define TWL6030_PWM2OFF			0xBE
+
+/* TWL6030 control interface  registers */
+#define TWL6030_TOGGLE1			0x90
+#define TWL6030_TOGGLE2			0x91
+#define TWL6030_TOGGLE3			0x92
 
 #define TWL4030_CLASS_ID 		0x4030
 #define TWL6030_CLASS_ID 		0x6030
+
 unsigned int twl_rev(void);
 #define GET_TWL_REV (twl_rev())
 #define TWL_CLASS_IS(class, id)			\
@@ -172,6 +198,23 @@ int twl_i2c_read(u8 mod_no, u8 *value, u8 reg, unsigned num_bytes);
 
 int twl6030_interrupt_unmask(u8 bit_mask, u8 offset);
 int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
+int twl6030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end);
+int twl6030_exit_irq(void);
+int twl4030_init_irq(int irq_num, unsigned irq_base, unsigned irq_end);
+int twl4030_exit_irq(void);
+int twl4030_init_chip_irq(const char *chip);
+
+int twl6030_register_notifier(struct notifier_block *nb,
+				unsigned int events);
+int twl6030_unregister_notifier(struct notifier_block *nb,
+				unsigned int events);
+
+/* Card detect Configuration for MMC1 Controller on OMAP4 */
+int twl6030_mmc_card_detect_config(void);
+
+/* MMC1 Controller on OMAP4 uses Phoenix irq for Card detect */
+int twl6030_mmc_card_detect(struct device *dev, int slot);
+
 
 /*----------------------------------------------------------------------*/
 
@@ -371,6 +414,7 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
 #define DEV_GRP_P1		0x1	/* P1: all OMAP devices */
 #define DEV_GRP_P2		0x2	/* P2: all Modem devices */
 #define DEV_GRP_P3		0x4	/* P3: all peripheral devices */
+#define DEV_GRP_ALL             0x7     /* P1/P2/P3: all devices */
 
 /* Resource groups */
 #define RES_GRP_RES		0x0	/* Reserved */
@@ -382,7 +426,12 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
 #define RES_GRP_RC_PR		0x6
 #define RES_GRP_ALL		0x7	/* All resource groups */
 
-#define RES_TYPE2_R0		0x0
+
+#define RES_TYPE2_R0            0x0
+#define RES_TYPE2_R1            0x1
+#define RES_TYPE2_R2            0x2
+
+#define RES_TYPE_R0             0x0
 
 #define RES_TYPE_ALL		0x7
 
@@ -462,6 +511,15 @@ struct twl4030_clock_init_data {
 struct twl4030_bci_platform_data {
 	int *battery_tmp_tbl;
 	unsigned int tblsize;
+
+	unsigned int monitoring_interval;
+
+	unsigned int max_charger_currentmA;
+	unsigned int max_charger_voltagemV;
+	unsigned int termination_currentmA;
+
+	unsigned int max_bat_voltagemV;
+	unsigned int low_bat_voltagemV;
 };
 
 /* TWL4030_GPIO_MAX (18) GPIOs, with interrupts */
@@ -550,11 +608,16 @@ struct twl4030_power_data {
 };
 
 extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
+extern void twl4030_power_sr_init(void);
 extern int twl4030_remove_script(u8 flags);
 
 struct twl4030_codec_audio_data {
-	unsigned int	audio_mclk;
+	unsigned int audio_mclk; /* not used, will be removed */
+	unsigned int digimic_delay; /* in ms */
 	unsigned int ramp_delay_value;
+	unsigned int offset_cncl_path;
+	unsigned int check_defaults:1;
+	unsigned int reset_registers:1;
 	unsigned int hs_extmute:1;
 	void (*set_hs_extmute)(int mute);
 };
@@ -562,6 +625,12 @@ struct twl4030_codec_audio_data {
 struct twl4030_codec_vibra_data {
 	unsigned int	audio_mclk;
 	unsigned int	coexist;
+
+	/* timed-output based implementations */
+	int max_timeout;
+	int initial_vibrate;
+	int (*init)(void);
+	void (*exit)(void);
 };
 
 struct twl4030_codec_data {
@@ -570,8 +639,9 @@ struct twl4030_codec_data {
 	struct twl4030_codec_vibra_data		*vibra;
 
 	/* twl6040 */
-	int audpwron_gpio;	/* audio power-on gpio */
-	int naudint_irq;	/* audio interrupt */
+	int audpwron_gpio;		/* audio power-on gpio */
+	unsigned int naudint_irq;	/* audio interrupt */
+	unsigned int irq_base;
 };
 
 struct twl4030_platform_data {
@@ -620,13 +690,28 @@ int twl4030_sih_setup(int module);
 #define TWL4030_VDAC_DEV_GRP		0x3B
 #define TWL4030_VDAC_DEDICATED		0x3E
 #define TWL4030_VAUX1_DEV_GRP		0x17
+#define TWL4030_VAUX1_TYPE		0x18
+#define TWL4030_VAUX1_REMAP		0x19
 #define TWL4030_VAUX1_DEDICATED		0x1A
 #define TWL4030_VAUX2_DEV_GRP		0x1B
+#define TWL4030_VAUX2_TYPE		0x1C
+#define TWL4030_VAUX2_REMAP		0x1D
 #define TWL4030_VAUX2_DEDICATED		0x1E
 #define TWL4030_VAUX3_DEV_GRP		0x1F
+#define TWL4030_VAUX3_TYPE		0x20
+#define TWL4030_VAUX3_REMAP		0x21
 #define TWL4030_VAUX3_DEDICATED		0x22
+#define TWL4030_VAUX4_DEV_GRP		0x23
+#define TWL4030_VAUX4_TYPE		0x24
+#define TWL4030_VAUX4_REMAP		0x25
+#define TWL4030_VAUX4_DEDICATED		0x26
 
-static inline int twl4030charger_usb_en(int enable) { return 0; }
+#if defined(CONFIG_TWL4030_BCI_BATTERY) || \
+	defined(CONFIG_TWL4030_BCI_BATTERY_MODULE)
+	extern int twl4030charger_usb_en(int enable);
+#else
+	static inline int twl4030charger_usb_en(int enable) { return 0; }
+#endif
 
 /*----------------------------------------------------------------------*/
 
@@ -662,6 +747,12 @@ static inline int twl4030charger_usb_en(int enable) { return 0; }
 #define TWL4030_REG_VUSB1V5	17
 #define TWL4030_REG_VUSB1V8	18
 #define TWL4030_REG_VUSB3V1	19
+
+// 20100624 taehwan.kim@lge.com  To add Hub battery support[START_LGE]
+#if defined(CONFIG_MACH_LGE_HUB)
+void charger_state_update_by_other(void);
+#endif
+// 20100624 taehwan.kim@lge.com  [END_LGE]
 
 /* TWL6030 SMPS/LDO's */
 /* EXTERNAL dc-to-dc buck convertor controllable via SR */

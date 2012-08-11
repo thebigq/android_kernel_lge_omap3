@@ -28,8 +28,11 @@
 #include <linux/pm.h>
 #include <linux/i2c/twl.h>
 #include <linux/platform_device.h>
+#include <linux/reboot.h>
 
 #include <asm/mach-types.h>
+
+#include <plat/smartreflex.h>
 
 static u8 twl4030_start_script_address = 0x2b;
 
@@ -62,6 +65,10 @@ static u8 twl4030_start_script_address = 0x2b;
 #define	R_SEQ_ADD_WARM		PHY_TO_OFF_PM_MASTER(0x58)
 #define R_MEMORY_ADDRESS	PHY_TO_OFF_PM_MASTER(0x59)
 #define R_MEMORY_DATA		PHY_TO_OFF_PM_MASTER(0x5a)
+
+/* Smartreflex Control */
+#define R_DCDC_GLOBAL_CFG	PHY_TO_OFF_PM_RECEIVER(0x61)
+#define CFG_ENABLE_SRFLX	0x08
 
 #define R_PROTECT_KEY		0x0E
 #define R_KEY_1			0xC0
@@ -125,6 +132,30 @@ static u8 res_config_addrs[] = {
 	[RES_32KCLKOUT]	= 0x8e,
 	[RES_RESET]	= 0x91,
 	[RES_Main_Ref]	= 0x94,
+};
+
+/*
+ * PRCM on OMAP3 will drive SYS_OFFMODE low during DPLL3 warm reset.
+ * This causes Gaia sleep script to execute, usually killing VDD1 and
+ * VDD2 while code is running.  WA is to disable the sleep script
+ * before warm reset.
+ */
+static int twl4030_prepare_for_reboot(struct notifier_block *this,
+		unsigned long cmd, void *p)
+{
+	int err;
+
+	err = twl4030_remove_script(TWL4030_SLEEP_SCRIPT);
+	if (err)
+		pr_err("TWL4030: error trying to disable sleep script!\n");
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block twl4030_reboot_notifier = {
+		.notifier_call = twl4030_prepare_for_reboot,
+		.next = NULL,
+		.priority = 0
 };
 
 static int __init twl4030_write_script_byte(u8 address, u8 byte)
@@ -451,12 +482,14 @@ static int __init load_twl4030_script(struct twl4030_script *tscript,
 		if (err)
 			goto out;
 	}
-	if (tscript->flags & TWL4030_SLEEP_SCRIPT)
+	if (tscript->flags & TWL4030_SLEEP_SCRIPT) {
 		if (order)
 			pr_warning("TWL4030: Bad order of scripts (sleep "\
 					"script before wakeup) Leads to boot"\
 					"failure on some boards\n");
 		err = twl4030_config_sleep_sequence(address);
+	}
+
 out:
 	return err;
 }
@@ -511,6 +544,29 @@ int twl4030_remove_script(u8 flags)
 	return err;
 }
 
+/* API to enable smrtreflex on Triton side */
+static void twl4030_smartreflex_init(void)
+{
+	int ret = 0;
+	u8 read_val;
+
+	ret = twl_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER, &read_val,
+			R_DCDC_GLOBAL_CFG);
+	read_val |= CFG_ENABLE_SRFLX;
+	ret |= twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER, read_val,
+			R_DCDC_GLOBAL_CFG);
+}
+
+struct omap_smartreflex_pmic_data twl4030_sr_data = {
+       .sr_pmic_init   = twl4030_smartreflex_init,
+};
+
+void __init twl4030_power_sr_init()
+{
+	/* Register the SR init API with the Smartreflex driver */
+	omap_sr_register_pmic(&twl4030_sr_data);
+}
+
 void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 {
 	int err = 0;
@@ -549,6 +605,11 @@ void __init twl4030_power_init(struct twl4030_power_data *twl4030_scripts)
 	err = twl_i2c_write_u8(TWL4030_MODULE_PM_MASTER, 0, R_PROTECT_KEY);
 	if (err)
 		pr_err("TWL4030 Unable to relock registers\n");
+
+	err = register_reboot_notifier(&twl4030_reboot_notifier);
+	if (err)
+		pr_err("TWL4030 Failed to register reboot notifier\n");
+
 	return;
 
 unlock:

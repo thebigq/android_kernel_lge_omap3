@@ -43,7 +43,8 @@
 #define OMAP3_UART1_BASE	OMAP2_UART1_BASE
 #define OMAP3_UART2_BASE	OMAP2_UART2_BASE
 #define OMAP3_UART3_BASE	0x49020000
-#define OMAP3_UART4_BASE	0x49042000	/* Only on 36xx */
+//2011_01_13 by seunghyun.yi@lge.com for UART4
+#define OMAP_UART4_BASE		0x49042000
 
 /* OMAP4 serial ports */
 #define OMAP4_UART1_BASE	OMAP2_UART1_BASE
@@ -93,9 +94,11 @@
 			})
 
 #ifndef __ASSEMBLER__
+struct omap_uart_port_info;
 extern void __init omap_serial_early_init(void);
-extern void omap_serial_init(void);
-extern void omap_serial_init_port(int port);
+extern void omap_serial_init(struct omap_uart_port_info *platform_data);
+extern void omap_serial_init_port(int port,
+			struct omap_uart_port_info *platform_data);
 extern int omap_uart_can_sleep(void);
 extern void omap_uart_check_wakeup(void);
 extern void omap_uart_prepare_suspend(void);

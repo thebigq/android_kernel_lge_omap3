@@ -17,13 +17,13 @@
  *  2003-09-03	Interactivity tuning by Con Kolivas.
  *  2004-04-02	Scheduler domains code by Nick Piggin
  *  2007-04-15  Work begun on replacing all interactivity tuning with a
- *              fair scheduling design by Con Kolivas.
+ *			  fair scheduling design by Con Kolivas.
  *  2007-05-05  Load balancing (smp-nice) and other improvements
- *              by Peter Williams
+ *			  by Peter Williams
  *  2007-05-06  Interactivity improvements to CFS by Mike Galbraith
  *  2007-07-01  Group scheduling enhancements by Srivatsa Vaddagiri
  *  2007-11-29  RT balancing improvements by Steven Rostedt, Gregory Haskins,
- *              Thomas Gleixner, Mike Kravetz
+ *			  Thomas Gleixner, Mike Kravetz
  */
 
 #include <linux/mm.h>
@@ -78,6 +78,15 @@
 #include <asm/irq_regs.h>
 
 #include "sched_cpupri.h"
+
+/* 20110328 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+#include <asm/current.h>	/* For current macro */
+#include <linux/dvs_suite.h>
+#include <linux/kernel.h>   /* For printk */
+#include <linux/list.h>	 /* For struct list_head */
+#include <linux/sched.h>	/* For struct task_struct */
+#include <linux/slab.h>	 /* For kmalloc and kfree */
+/* 20110328 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
@@ -580,8 +589,8 @@ static inline int cpu_of(struct rq *rq)
 
 #define rcu_dereference_check_sched_domain(p) \
 	rcu_dereference_check((p), \
-			      rcu_read_lock_sched_held() || \
-			      lockdep_is_held(&sched_domains_mutex))
+				  rcu_read_lock_sched_held() || \
+				  lockdep_is_held(&sched_domains_mutex))
 
 /*
  * The domain tree (rq->sd) is protected by RCU's quiescent state transition.
@@ -1338,8 +1347,8 @@ static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
  * slice expiry etc.
  */
 
-#define WEIGHT_IDLEPRIO                3
-#define WMULT_IDLEPRIO         1431655765
+#define WEIGHT_IDLEPRIO				3
+#define WMULT_IDLEPRIO		 1431655765
 
 /*
  * Nice levels are multiplicative, with a gentle 10% change for every
@@ -1354,14 +1363,14 @@ static inline void update_load_sub(struct load_weight *lw, unsigned long dec)
  * the relative distance between them is ~25%.)
  */
 static const int prio_to_weight[40] = {
- /* -20 */     88761,     71755,     56483,     46273,     36291,
- /* -15 */     29154,     23254,     18705,     14949,     11916,
- /* -10 */      9548,      7620,      6100,      4904,      3906,
- /*  -5 */      3121,      2501,      1991,      1586,      1277,
- /*   0 */      1024,       820,       655,       526,       423,
- /*   5 */       335,       272,       215,       172,       137,
- /*  10 */       110,        87,        70,        56,        45,
- /*  15 */        36,        29,        23,        18,        15,
+ /* -20 */	 88761,	 71755,	 56483,	 46273,	 36291,
+ /* -15 */	 29154,	 23254,	 18705,	 14949,	 11916,
+ /* -10 */	  9548,	  7620,	  6100,	  4904,	  3906,
+ /*  -5 */	  3121,	  2501,	  1991,	  1586,	  1277,
+ /*   0 */	  1024,	   820,	   655,	   526,	   423,
+ /*   5 */	   335,	   272,	   215,	   172,	   137,
+ /*  10 */	   110,		87,		70,		56,		45,
+ /*  15 */		36,		29,		23,		18,		15,
 };
 
 /*
@@ -1372,9 +1381,9 @@ static const int prio_to_weight[40] = {
  * into multiplications:
  */
 static const u32 prio_to_wmult[40] = {
- /* -20 */     48388,     59856,     76040,     92818,    118348,
- /* -15 */    147320,    184698,    229616,    287308,    360437,
- /* -10 */    449829,    563644,    704093,    875809,   1099582,
+ /* -20 */	 48388,	 59856,	 76040,	 92818,	118348,
+ /* -15 */	147320,	184698,	229616,	287308,	360437,
+ /* -10 */	449829,	563644,	704093,	875809,   1099582,
  /*  -5 */   1376151,   1717300,   2157191,   2708050,   3363326,
  /*   0 */   4194304,   5237765,   6557202,   8165337,  10153587,
  /*   5 */  12820798,  15790321,  19976592,  24970740,  31350126,
@@ -1525,9 +1534,9 @@ static void __set_se_shares(struct sched_entity *se, unsigned long shares);
  * Calculate and set the cpu's group shares.
  */
 static void update_group_shares_cpu(struct task_group *tg, int cpu,
-				    unsigned long sd_shares,
-				    unsigned long sd_rq_weight,
-				    unsigned long *usd_rq_weight)
+					unsigned long sd_shares,
+					unsigned long sd_rq_weight,
+					unsigned long *usd_rq_weight)
 {
 	unsigned long shares, rq_weight;
 	int boost = 0;
@@ -1539,9 +1548,9 @@ static void update_group_shares_cpu(struct task_group *tg, int cpu,
 	}
 
 	/*
-	 *             \Sum_j shares_j * rq_weight_i
+	 *			 \Sum_j shares_j * rq_weight_i
 	 * shares_i =  -----------------------------
-	 *                  \Sum_j rq_weight_j
+	 *				  \Sum_j rq_weight_j
 	 */
 	shares = (sd_shares * rq_weight) / sd_rq_weight;
 	shares = clamp_t(unsigned long, shares, MIN_SHARES, MAX_SHARES);
@@ -1708,11 +1717,11 @@ static int _double_lock_balance(struct rq *this_rq, struct rq *busiest)
 			raw_spin_unlock(&this_rq->lock);
 			raw_spin_lock(&busiest->lock);
 			raw_spin_lock_nested(&this_rq->lock,
-					      SINGLE_DEPTH_NESTING);
+						  SINGLE_DEPTH_NESTING);
 			ret = 1;
 		} else
 			raw_spin_lock_nested(&busiest->lock,
-					      SINGLE_DEPTH_NESTING);
+						  SINGLE_DEPTH_NESTING);
 	}
 	return ret;
 }
@@ -1953,8 +1962,8 @@ inline int task_curr(const struct task_struct *p)
 }
 
 static inline void check_class_changed(struct rq *rq, struct task_struct *p,
-				       const struct sched_class *prev_class,
-				       int oldprio, int running)
+					   const struct sched_class *prev_class,
+					   int oldprio, int running)
 {
 	if (prev_class != p->sched_class) {
 		if (prev_class->switched_from)
@@ -2178,7 +2187,7 @@ EXPORT_SYMBOL_GPL(kick_process);
  * be on the current CPU, which just calls the function directly
  */
 void task_oncpu_function_call(struct task_struct *p,
-			      void (*func) (void *info), void *info)
+				  void (*func) (void *info), void *info)
 {
 	int cpu;
 
@@ -2218,8 +2227,8 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 		 */
 		if (p->mm && printk_ratelimit()) {
 			printk(KERN_INFO "process %d (%s) no "
-			       "longer affine to cpu%d\n",
-			       task_pid_nr(p), p->comm, cpu);
+				   "longer affine to cpu%d\n",
+				   task_pid_nr(p), p->comm, cpu);
 		}
 	}
 
@@ -2245,7 +2254,7 @@ int select_task_rq(struct rq *rq, struct task_struct *p, int sd_flags, int wake_
 	 *   not worry about this generic constraint ]
 	 */
 	if (unlikely(!cpumask_test_cpu(cpu, &p->cpus_allowed) ||
-		     !cpu_online(cpu)))
+			 !cpu_online(cpu)))
 		cpu = select_fallback_rq(task_cpu(p), p);
 
 	return cpu;
@@ -2629,7 +2638,7 @@ fire_sched_out_preempt_notifiers(struct task_struct *curr,
  */
 static inline void
 prepare_task_switch(struct rq *rq, struct task_struct *prev,
-		    struct task_struct *next)
+			struct task_struct *next)
 {
 	fire_sched_out_preempt_notifiers(prev, next);
 	prepare_lock_switch(rq, next);
@@ -2761,7 +2770,7 @@ asmlinkage void schedule_tail(struct task_struct *prev)
  */
 static inline void
 context_switch(struct rq *rq, struct task_struct *prev,
-	       struct task_struct *next)
+		   struct task_struct *next)
 {
 	struct mm_struct *mm, *oldmm;
 
@@ -2796,6 +2805,15 @@ context_switch(struct rq *rq, struct task_struct *prev,
 #ifndef __ARCH_WANT_UNLOCKED_CTXSW
 	spin_release(&rq->lock.dep_map, 1, _THIS_IP_);
 #endif
+
+/* 20110328 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+	if(ds_configuration.on_dvs == 1){
+		ds_parameter.entry_type = DS_ENTRY_SWITCH_TO;
+		ds_parameter.prev_p = prev;
+		ds_parameter.next_p = next;
+		ld_do_dvs_suite();
+	}
+/* 20110328 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
 
 	/* Here we just switch the register state and the stack. */
 	switch_to(prev, next, prev);
@@ -3056,7 +3074,7 @@ void sched_exec(void)
 	 * select_task_rq() can race against ->cpus_allowed
 	 */
 	if (cpumask_test_cpu(dest_cpu, &p->cpus_allowed) &&
-	    likely(cpu_active(dest_cpu)) && migrate_task(p, dest_cpu)) {
+		likely(cpu_active(dest_cpu)) && migrate_task(p, dest_cpu)) {
 		struct migration_arg arg = { p, dest_cpu };
 
 		task_rq_unlock(rq, &flags);
@@ -3155,7 +3173,7 @@ unsigned long long thread_group_sched_runtime(struct task_struct *p)
  * @cputime_scaled: cputime scaled by cpu frequency
  */
 void account_user_time(struct task_struct *p, cputime_t cputime,
-		       cputime_t cputime_scaled)
+			   cputime_t cputime_scaled)
 {
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
 	cputime64_t tmp;
@@ -3184,7 +3202,7 @@ void account_user_time(struct task_struct *p, cputime_t cputime,
  * @cputime_scaled: cputime scaled by cpu frequency
  */
 static void account_guest_time(struct task_struct *p, cputime_t cputime,
-			       cputime_t cputime_scaled)
+				   cputime_t cputime_scaled)
 {
 	cputime64_t tmp;
 	struct cpu_usage_stat *cpustat = &kstat_this_cpu.cpustat;
@@ -3289,7 +3307,7 @@ void account_process_tick(struct task_struct *p, int user_tick)
 		account_user_time(p, cputime_one_jiffy, one_jiffy_scaled);
 	else if ((p != rq->idle) || (irq_count() != HARDIRQ_OFFSET))
 		account_system_time(p, HARDIRQ_OFFSET, cputime_one_jiffy,
-				    one_jiffy_scaled);
+					one_jiffy_scaled);
 	else
 		account_idle_time(cputime_one_jiffy);
 }
@@ -3393,7 +3411,7 @@ void thread_group_times(struct task_struct *p, cputime_t *ut, cputime_t *st)
 
 	sig->prev_utime = max(sig->prev_utime, utime);
 	sig->prev_stime = max(sig->prev_stime,
-			      cputime_sub(rtime, sig->prev_utime));
+				  cputime_sub(rtime, sig->prev_utime));
 
 	*ut = sig->prev_utime;
 	*st = sig->prev_stime;
@@ -3583,6 +3601,18 @@ asmlinkage void __sched schedule(void)
 	struct rq *rq;
 	int cpu;
 
+/* 20110328 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+	//struct sched_param lc_sched_param;
+
+#if 0
+	if(ds_configuration.on_dvs == 1){
+		//ds_counter.schedule_no ++;	// Not needed unless we want statistics.
+		ld_update_time_counter();
+		ds_status.cpu_mode = DS_CPU_MODE_SCHEDULE;
+	}
+#endif
+/* 20110328 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
+
 need_resched:
 	preempt_disable();
 	cpu = smp_processor_id();
@@ -3647,6 +3677,38 @@ need_resched_nonpreemptible:
 	preempt_enable_no_resched();
 	if (need_resched())
 		goto need_resched;
+
+/* 20110328 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+	if(ds_configuration.on_dvs == 1){
+		ld_update_time_counter();
+
+		if(next->pid == 0)
+			ds_status.cpu_mode = DS_CPU_MODE_IDLE;
+		else
+			ds_status.cpu_mode = DS_CPU_MODE_TASK;
+
+#if 0   // WARNING: This code will cause a severe performance degradation!!!
+if(next->pid == 0)
+printk(KERN_WARNING "%d %5d %16s %3d\n",
+ds_status.type[prev->pid],
+prev->pid,
+prev->comm,
+//prev->prio,
+prev->static_prio
+);
+#endif
+#if 0   // WARNING: This code will cause a severe performance degradation!!!
+if(prev->pid == 0)
+printk(KERN_WARNING "%d %5d %16s %3d\n",
+ds_status.type[next->pid],
+next->pid,
+next->comm,
+//next->prio,
+next->static_prio
+);
+#endif
+	}
+/* 20110328 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
 }
 EXPORT_SYMBOL(schedule);
 
@@ -4059,7 +4121,7 @@ EXPORT_SYMBOL(wait_for_completion_killable);
  */
 unsigned long __sched
 wait_for_completion_killable_timeout(struct completion *x,
-				     unsigned long timeout)
+					 unsigned long timeout)
 {
 	return wait_for_common(x, timeout, TASK_KILLABLE);
 }
@@ -4215,9 +4277,19 @@ void set_user_nice(struct task_struct *p, long nice)
 	int old_prio, delta, on_rq;
 	unsigned long flags;
 	struct rq *rq;
+#if 0
+	long nice_refined;
+#endif
 
 	if (TASK_NICE(p) == nice || nice < -20 || nice > 19)
 		return;
+#if 0
+	if(p->static_prio < 120){
+		nice_refined = nice - (120 - p->static_prio);
+		if(nice_refined < -20) nice_refined = -20;
+		nice = nice_refined;
+	}
+#endif
 	/*
 	 * We have to be careful, if called from sys_setpriority(),
 	 * the task might be in the middle of scheduling on another CPU.
@@ -4429,8 +4501,8 @@ recheck:
 	 * SCHED_BATCH and SCHED_IDLE is 0.
 	 */
 	if (param->sched_priority < 0 ||
-	    (p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
-	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
+		(p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
+		(!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
 	if (rt_policy(policy) != (param->sched_priority != 0))
 		return -EINVAL;
@@ -4453,7 +4525,7 @@ recheck:
 
 			/* can't increase priority */
 			if (param->sched_priority > p->rt_priority &&
-			    param->sched_priority > rlim_rtprio)
+				param->sched_priority > rlim_rtprio)
 				return -EPERM;
 		}
 		/*
@@ -4548,7 +4620,7 @@ recheck:
  * NOTE that the task may be already dead.
  */
 int sched_setscheduler(struct task_struct *p, int policy,
-		       struct sched_param *param)
+			   struct sched_param *param)
 {
 	return __sched_setscheduler(p, policy, param, true);
 }
@@ -4566,7 +4638,7 @@ EXPORT_SYMBOL_GPL(sched_setscheduler);
  * but our caller might not have that capability.
  */
 int sched_setscheduler_nocheck(struct task_struct *p, int policy,
-			       struct sched_param *param)
+				   struct sched_param *param)
 {
 	return __sched_setscheduler(p, policy, param, false);
 }
@@ -4747,7 +4819,7 @@ out_put_task:
 }
 
 static int get_user_cpu_mask(unsigned long __user *user_mask_ptr, unsigned len,
-			     struct cpumask *new_mask)
+				 struct cpumask *new_mask)
 {
 	if (len < cpumask_size())
 		cpumask_clear(new_mask);
@@ -5091,7 +5163,7 @@ void sched_show_task(struct task_struct *p)
 		printk(KERN_CONT " %08lx ", thread_saved_pc(p));
 #else
 	if (state == TASK_RUNNING)
-		printk(KERN_CONT "  running task    ");
+		printk(KERN_CONT "  running task	");
 	else
 		printk(KERN_CONT " %016lx ", thread_saved_pc(p));
 #endif
@@ -5111,10 +5183,10 @@ void show_state_filter(unsigned long state_filter)
 
 #if BITS_PER_LONG == 32
 	printk(KERN_INFO
-		"  task                PC stack   pid father\n");
+		"  task				PC stack   pid father\n");
 #else
 	printk(KERN_INFO
-		"  task                        PC stack   pid father\n");
+		"  task						PC stack   pid father\n");
 #endif
 	read_lock(&tasklist_lock);
 	do_each_thread(g, p) {
@@ -5248,14 +5320,14 @@ static inline void sched_init_granularity(void)
  * This is how migration works:
  *
  * 1) we invoke migration_cpu_stop() on the target CPU using
- *    stop_one_cpu().
+ *	stop_one_cpu().
  * 2) stopper starts to run (implicitly forcing the migrated thread
- *    off the CPU)
+ *	off the CPU)
  * 3) it checks whether the migrated task is still in the wrong runqueue.
  * 4) if it's in the wrong runqueue then the migration thread removes
- *    it and puts it into the right queue.
+ *	it and puts it into the right queue.
  * 5) stopper completes and stop_one_cpu() returns and the migration
- *    is done.
+ *	is done.
  */
 
 /*
@@ -5293,7 +5365,7 @@ again:
 	}
 
 	if (unlikely((p->flags & PF_THREAD_BOUND) && p != current &&
-		     !cpumask_equal(&p->cpus_allowed, new_mask))) {
+			 !cpumask_equal(&p->cpus_allowed, new_mask))) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -5923,7 +5995,7 @@ static int sched_domain_debug_one(struct sched_domain *sd, int cpu, int level,
 		printk(KERN_ERR "ERROR: groups don't span domain->span\n");
 
 	if (sd->parent &&
-	    !cpumask_subset(groupmask, sched_domain_span(sd->parent)))
+		!cpumask_subset(groupmask, sched_domain_span(sd->parent)))
 		printk(KERN_ERR "ERROR: parent span is not a superset "
 			"of domain->span\n");
 	return 0;
@@ -6485,7 +6557,7 @@ static int build_numa_sched_groups(struct s_data *d,
 			  GFP_KERNEL, num);
 	if (!sg) {
 		printk(KERN_WARNING "Can not alloc domain group for node %d\n",
-		       num);
+			   num);
 		return -ENOMEM;
 	}
 	d->sched_group_nodes[num] = sg;
@@ -6515,7 +6587,7 @@ static int build_numa_sched_groups(struct s_data *d,
 				  GFP_KERNEL, num);
 		if (!sg) {
 			printk(KERN_WARNING
-			       "Can not alloc domain group for node %d\n", j);
+				   "Can not alloc domain group for node %d\n", j);
 			return -ENOMEM;
 		}
 		sg->cpu_power = 0;
@@ -6533,7 +6605,7 @@ out:
 #ifdef CONFIG_NUMA
 /* Free memory allocated for various sched_group structures */
 static void free_sched_groups(const struct cpumask *cpu_map,
-			      struct cpumask *nodemask)
+				  struct cpumask *nodemask)
 {
 	int cpu, i;
 
@@ -6567,7 +6639,7 @@ next_sg:
 }
 #else /* !CONFIG_NUMA */
 static void free_sched_groups(const struct cpumask *cpu_map,
-			      struct cpumask *nodemask)
+				  struct cpumask *nodemask)
 {
 }
 #endif /* CONFIG_NUMA */
@@ -6741,7 +6813,7 @@ static enum s_alloc __visit_domain_allocation_hell(struct s_data *d,
 		return sa_covered;
 	/* Allocate the per-node list of sched groups */
 	d->sched_group_nodes = kcalloc(nr_node_ids,
-				      sizeof(struct sched_group *), GFP_KERNEL);
+					  sizeof(struct sched_group *), GFP_KERNEL);
 	if (!d->sched_group_nodes) {
 		printk(KERN_WARNING "Can not alloc sched group node list\n");
 		return sa_notcovered;
@@ -6775,7 +6847,7 @@ static struct sched_domain *__build_numa_sched_domains(struct s_data *d,
 
 	d->sd_allnodes = 0;
 	if (cpumask_weight(cpu_map) >
-	    SD_NODES_PER_DOMAIN * cpumask_weight(d->nodemask)) {
+		SD_NODES_PER_DOMAIN * cpumask_weight(d->nodemask)) {
 		sd = &per_cpu(allnodes_domains, i).sd;
 		SD_INIT(sd, ALLNODES);
 		set_domain_attribute(sd, attr);
@@ -6848,13 +6920,13 @@ static struct sched_domain *__build_smt_sched_domain(struct s_data *d,
 }
 
 static void build_sched_groups(struct s_data *d, enum sched_domain_level l,
-			       const struct cpumask *cpu_map, int cpu)
+				   const struct cpumask *cpu_map, int cpu)
 {
 	switch (l) {
 #ifdef CONFIG_SCHED_SMT
 	case SD_LV_SIBLING: /* set up CPU (sibling) groups */
 		cpumask_and(d->this_sibling_map, cpu_map,
-			    topology_thread_cpumask(cpu));
+				topology_thread_cpumask(cpu));
 		if (cpu == cpumask_first(d->this_sibling_map))
 			init_sched_build_groups(d->this_sibling_map, cpu_map,
 						&cpu_to_cpu_group,
@@ -6913,7 +6985,7 @@ static int __build_sched_domains(const struct cpumask *cpu_map,
 	 */
 	for_each_cpu(i, cpu_map) {
 		cpumask_and(d.nodemask, cpumask_of_node(cpu_to_node(i)),
-			    cpu_map);
+				cpu_map);
 
 		sd = __build_numa_sched_domains(&d, cpu_map, attr, i);
 		sd = __build_cpu_sched_domain(&d, cpu_map, attr, sd, i);
@@ -7068,7 +7140,7 @@ static int arch_init_sched_domains(const struct cpumask *cpu_map)
 }
 
 static void arch_destroy_sched_domains(const struct cpumask *cpu_map,
-				       struct cpumask *tmpmask)
+					   struct cpumask *tmpmask)
 {
 	free_sched_groups(cpu_map, tmpmask);
 }
@@ -7132,7 +7204,7 @@ static int dattrs_equal(struct sched_domain_attr *cur, int idx_cur,
  * Call with hotplug lock held
  */
 void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
-			     struct sched_domain_attr *dattr_new)
+				 struct sched_domain_attr *dattr_new)
 {
 	int i, j, n;
 	int new_topology;
@@ -7151,7 +7223,7 @@ void partition_sched_domains(int ndoms_new, cpumask_var_t doms_new[],
 	for (i = 0; i < ndoms_cur; i++) {
 		for (j = 0; j < n && !new_topology; j++) {
 			if (cpumask_equal(doms_cur[i], doms_new[j])
-			    && dattrs_equal(dattr_cur, i, dattr_new, j))
+				&& dattrs_equal(dattr_cur, i, dattr_new, j))
 				goto match1;
 		}
 		/* no match - a current sched domain not in new doms_new[] */
@@ -7171,7 +7243,7 @@ match1:
 	for (i = 0; i < ndoms_new; i++) {
 		for (j = 0; j < ndoms_cur && !new_topology; j++) {
 			if (cpumask_equal(doms_new[i], doms_cur[j])
-			    && dattrs_equal(dattr_new, i, dattr_cur, j))
+				&& dattrs_equal(dattr_new, i, dattr_cur, j))
 				goto match2;
 		}
 		/* no match - add a new doms_new */
@@ -7241,8 +7313,8 @@ static ssize_t sched_mc_power_savings_show(struct sysdev_class *class,
 	return sprintf(page, "%u\n", sched_mc_power_savings);
 }
 static ssize_t sched_mc_power_savings_store(struct sysdev_class *class,
-					    struct sysdev_class_attribute *attr,
-					    const char *buf, size_t count)
+						struct sysdev_class_attribute *attr,
+						const char *buf, size_t count)
 {
 	return sched_power_savings_store(buf, count, 0);
 }
@@ -7253,14 +7325,14 @@ static SYSDEV_CLASS_ATTR(sched_mc_power_savings, 0644,
 
 #ifdef CONFIG_SCHED_SMT
 static ssize_t sched_smt_power_savings_show(struct sysdev_class *dev,
-					    struct sysdev_class_attribute *attr,
-					    char *page)
+						struct sysdev_class_attribute *attr,
+						char *page)
 {
 	return sprintf(page, "%u\n", sched_smt_power_savings);
 }
 static ssize_t sched_smt_power_savings_store(struct sysdev_class *dev,
-					     struct sysdev_class_attribute *attr,
-					     const char *buf, size_t count)
+						 struct sysdev_class_attribute *attr,
+						 const char *buf, size_t count)
 {
 	return sched_power_savings_store(buf, count, 1);
 }
@@ -7554,7 +7626,7 @@ void __init sched_init(void)
 
 #if defined CONFIG_FAIR_GROUP_SCHED && defined CONFIG_SMP
 	update_shares_data = __alloc_percpu(nr_cpu_ids * sizeof(unsigned long),
-					    __alignof__(unsigned long));
+						__alignof__(unsigned long));
 #endif
 	for_each_possible_cpu(i) {
 		struct rq *rq;
@@ -7671,6 +7743,16 @@ void __init sched_init(void)
 	perf_event_init();
 
 	scheduler_running = 1;
+
+/* 20110331 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+	ds_configuration.sched_scheme = DS_SCHED_GPSCHED;
+	ds_configuration.dvs_scheme = DS_DVS_GPSCHEDVS;
+	ds_configuration.gpschedvs_strategy = 0;
+	ds_configuration.aidvs_interval_window_size = DS_AIDVS_INTERVALS_IN_AN_WINDOW;
+	ds_configuration.aidvs_speedup_threshold = DS_AIDVS_SPEEDUP_THRESHOLD;
+	ds_configuration.aidvs_speedup_interval = DS_AIDVS_SPEEDUP_INTERVAL;
+	ld_initialize_dvs_suite(DS_CPU_MODE_TASK);
+/* 20110331 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
 }
 
 #ifdef CONFIG_DEBUG_SPINLOCK_SLEEP
@@ -7695,10 +7777,10 @@ void __might_sleep(const char *file, int line, int preempt_offset)
 	static unsigned long prev_jiffy;	/* ratelimiting */
 
 	if ((preempt_count_equals(preempt_offset) && !irqs_disabled()) ||
-	    oops_in_progress)
+		oops_in_progress)
 		return;
 	if (system_state != SYSTEM_RUNNING &&
-	    (!__might_sleep_init_called || system_state != SYSTEM_BOOTING))
+		(!__might_sleep_init_called || system_state != SYSTEM_BOOTING))
 		return;
 	if (time_before(jiffies, prev_jiffy + HZ) && prev_jiffy)
 		return;
@@ -7865,7 +7947,7 @@ int alloc_fair_sched_group(struct task_group *tg, struct task_group *parent)
 		rq = cpu_rq(i);
 
 		cfs_rq = kzalloc_node(sizeof(struct cfs_rq),
-				      GFP_KERNEL, cpu_to_node(i));
+					  GFP_KERNEL, cpu_to_node(i));
 		if (!cfs_rq)
 			goto err;
 
@@ -7955,12 +8037,12 @@ int alloc_rt_sched_group(struct task_group *tg, struct task_group *parent)
 		rq = cpu_rq(i);
 
 		rt_rq = kzalloc_node(sizeof(struct rt_rq),
-				     GFP_KERNEL, cpu_to_node(i));
+					 GFP_KERNEL, cpu_to_node(i));
 		if (!rt_rq)
 			goto err;
 
 		rt_se = kzalloc_node(sizeof(struct sched_rt_entity),
-				     GFP_KERNEL, cpu_to_node(i));
+					 GFP_KERNEL, cpu_to_node(i));
 		if (!rt_se)
 			goto err_free_rq;
 
@@ -8488,7 +8570,7 @@ int sched_rt_handler(struct ctl_table *table, int write,
 static inline struct task_group *cgroup_tg(struct cgroup *cgrp)
 {
 	return container_of(cgroup_subsys_state(cgrp, cpu_cgroup_subsys_id),
-			    struct task_group, css);
+				struct task_group, css);
 }
 
 static struct cgroup_subsys_state *
@@ -8542,7 +8624,7 @@ cpu_cgroup_can_attach_task(struct cgroup *cgrp, struct task_struct *tsk)
 
 static int
 cpu_cgroup_can_attach(struct cgroup_subsys *ss, struct cgroup *cgrp,
-		      struct task_struct *tsk, bool threadgroup)
+			  struct task_struct *tsk, bool threadgroup)
 {
 	int retval = cpu_cgroup_can_attach_task(cgrp, tsk);
 	if (retval)
@@ -8703,14 +8785,14 @@ struct cgroup_subsys cpuacct_subsys;
 static inline struct cpuacct *cgroup_ca(struct cgroup *cgrp)
 {
 	return container_of(cgroup_subsys_state(cgrp, cpuacct_subsys_id),
-			    struct cpuacct, css);
+				struct cpuacct, css);
 }
 
 /* return cpu accounting group to which this task belongs */
 static inline struct cpuacct *task_ca(struct task_struct *tsk)
 {
 	return container_of(task_subsys_state(tsk, cpuacct_subsys_id),
-			    struct cpuacct, css);
+				struct cpuacct, css);
 }
 
 /* create a new cpu accounting group */
@@ -9049,8 +9131,8 @@ void synchronize_sched_expedited(void)
 	snap = atomic_read(&synchronize_sched_expedited_count) + 1;
 	get_online_cpus();
 	while (try_stop_cpus(cpu_online_mask,
-			     synchronize_sched_expedited_cpu_stop,
-			     NULL) == -EAGAIN) {
+				 synchronize_sched_expedited_cpu_stop,
+				 NULL) == -EAGAIN) {
 		put_online_cpus();
 		if (trycount++ < 10)
 			udelay(trycount * num_online_cpus());

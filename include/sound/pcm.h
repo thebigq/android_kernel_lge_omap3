@@ -360,6 +360,7 @@ struct snd_pcm_group {		/* keep linked substreams */
 struct pid;
 
 struct snd_pcm_substream {
+	int use256FS;
 	struct snd_pcm *pcm;
 	struct snd_pcm_str *pstr;
 	void *private_data;		/* copied from pcm->private_data */
@@ -406,6 +407,7 @@ struct snd_pcm_substream {
 #endif
 	/* misc flags */
 	unsigned int hw_opened: 1;
+	unsigned int hw_no_buffer: 1; /* substream may not have a buffer */
 };
 
 #define SUBSTREAM_BUSY(substream) ((substream)->ref_count > 0)

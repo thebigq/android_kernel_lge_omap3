@@ -18,6 +18,7 @@
 /* #define VERBOSE_DEBUG */
 
 #include <linux/kernel.h>
+#include <linux/sched.h>
 #include <linux/interrupt.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -814,6 +815,14 @@ static void gs_close(struct tty_struct *tty, struct file *file)
 {
 	struct gs_port *port = tty->driver_data;
 	struct gserial	*gser;
+
+// LGE_UPDATE_S 20110325 [jaejoong.kim@lge.com] prevent kernel panic because of NULL point
+	if (!port) {
+		pr_debug("gs_close: tty->driver_data is NULL point\n");
+		return;
+	}
+
+// LGE_UPDATE_E 20110325 [jaejoong.kim@lge.com] prevent kernel panic because of NULL point
 
 	spin_lock_irq(&port->port_lock);
 

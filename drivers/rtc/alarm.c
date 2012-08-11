@@ -381,8 +381,16 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 	struct alarm_queue *wakeup_queue = NULL;
 	struct alarm_queue *tmp_queue = NULL;
 
-	pr_alarm(SUSPEND, "alarm_suspend(%p, %d)\n", pdev, state.event);
+/* LGE_CHANGE_S [LS855:bking.moon@lge.com] 2011-06-27, */ 
+#if 1
+	extern int alarm_rtc_disable_by_flight_test_mode;
+	if( alarm_rtc_disable_by_flight_test_mode )
+		return 0;
+#endif 
+/* LGE_CHANGE_E [LS855:bking.moon@lge.com] 2011-06-27 */
 
+	pr_alarm(SUSPEND, "alarm_suspend(%p, %d)\n", pdev, state.event);
+	
 	spin_lock_irqsave(&alarm_slock, flags);
 	suspended = true;
 	spin_unlock_irqrestore(&alarm_slock, flags);
@@ -420,8 +428,10 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 			"rtc alarm set at %ld, now %ld, rtc delta %ld.%09ld\n",
 			rtc_alarm_time, rtc_current_time,
 			rtc_delta.tv_sec, rtc_delta.tv_nsec);
+
 		if (rtc_current_time + 1 >= rtc_alarm_time) {
 			pr_alarm(SUSPEND, "alarm about to go off\n");
+
 			memset(&rtc_alarm, 0, sizeof(rtc_alarm));
 			rtc_alarm.enabled = 0;
 			rtc_set_alarm(alarm_rtc_dev, &rtc_alarm);
@@ -436,6 +446,9 @@ static int alarm_suspend(struct platform_device *pdev, pm_message_t state)
 			err = -EBUSY;
 			spin_unlock_irqrestore(&alarm_slock, flags);
 		}
+		else
+			printk(KERN_WARNING "rtc alarm set at %ld, now %ld,(+%ld sec)\n",
+			       rtc_alarm_time, rtc_current_time, (rtc_alarm_time - rtc_current_time));
 	}
 	return err;
 }

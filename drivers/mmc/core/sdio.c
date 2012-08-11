@@ -10,6 +10,7 @@
  */
 
 #include <linux/err.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/mmc/host.h>
 #include <linux/mmc/card.h>
@@ -24,7 +25,7 @@
 #include "sdio_ops.h"
 #include "sdio_cis.h"
 
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#ifdef CONFIG_TIWLAN_SDIO
 #include <linux/mmc/sdio_ids.h>
 #endif
 
@@ -297,6 +298,9 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		goto err;
 	}
 
+#ifdef CONFIG_TIWLAN_SDIO
+	card->quirks = host->embedded_sdio_data.quirks;
+#endif
 	card->type = MMC_TYPE_SDIO;
 
 	/*
@@ -325,9 +329,10 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 			goto remove;
 	}
 
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#ifdef CONFIG_TIWLAN_SDIO
 	if (host->embedded_sdio_data.cccr)
-		memcpy(&card->cccr, host->embedded_sdio_data.cccr, sizeof(struct sdio_cccr));
+		memcpy(&card->cccr, host->embedded_sdio_data.cccr,
+				sizeof(struct sdio_cccr));
 	else {
 #endif
 		/*
@@ -336,23 +341,25 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 		err = sdio_read_cccr(card);
 		if (err)
 			goto remove;
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#ifdef CONFIG_TIWLAN_SDIO
 	}
 #endif
 
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#ifdef CONFIG_TIWLAN_SDIO
 	if (host->embedded_sdio_data.cis)
-		memcpy(&card->cis, host->embedded_sdio_data.cis, sizeof(struct sdio_cis));
+		memcpy(&card->cis, host->embedded_sdio_data.cis,
+		sizeof(struct sdio_cis));
 	else {
 #endif
-		/*
-		 * Read the common CIS tuples.
-		 */
-		err = sdio_read_common_cis(card);
-		if (err)
-			goto remove;
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
-	}
+	/*
+	 * Read the common CIS tuples.
+	 */
+	err = sdio_read_common_cis(card);
+	if (err)
+		goto remove;
+
+#ifdef CONFIG_TIWLAN_SDIO
+       }
 #endif
 
 	if (oldcard) {
@@ -364,7 +371,9 @@ static int mmc_sdio_init_card(struct mmc_host *host, u32 ocr,
 			goto err;
 		}
 		card = oldcard;
+#ifdef CONFIG_TIWLAN_SDIO
 		return 0;
+#endif
 	}
 
 	/*
@@ -439,6 +448,13 @@ static void mmc_sdio_detect(struct mmc_host *host)
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
+	/* Make sure card is powered before detecting it */
+	if (host->caps & MMC_CAP_POWER_OFF_CARD) {
+		err = pm_runtime_get_sync(&host->card->dev);
+		if (err < 0)
+			goto out;
+	}
+
 	mmc_claim_host(host);
 
 	/*
@@ -448,6 +464,21 @@ static void mmc_sdio_detect(struct mmc_host *host)
 
 	mmc_release_host(host);
 
+	/*
+	 * Tell PM core it's OK to power off the card now.
+	 *
+	 * The _sync variant is used in order to ensure that the card
+	 * is left powered off in case an error occurred, and the card
+	 * is going to be removed.
+	 *
+	 * Since there is no specific reason to believe a new user
+	 * is about to show up at this point, the _sync variant is
+	 * desirable anyway.
+	 */
+	if (host->caps & MMC_CAP_POWER_OFF_CARD)
+		pm_runtime_put_sync(&host->card->dev);
+
+out:
 	if (err) {
 		mmc_sdio_remove(host);
 
@@ -464,6 +495,8 @@ static void mmc_sdio_detect(struct mmc_host *host)
  */
 static int mmc_sdio_suspend(struct mmc_host *host)
 {
+	/* LGE_CHANGE_S, [bill.jung@lge.com], 2010-11-26, <Don't operate anything. For WLAN host wake up function.> */
+	#if 0
 	int i, err = 0;
 
 	for (i = 0; i < host->card->sdio_funcs; i++) {
@@ -494,24 +527,41 @@ static int mmc_sdio_suspend(struct mmc_host *host)
 	}
 
 	return err;
+	#endif
+	/* LGE_CHANGE_E, [bill.jung@lge.com], 2010-11-26, <Don't operate anything. For WLAN host wake up function.> */
+	
+	return 0;
 }
 
 static int mmc_sdio_resume(struct mmc_host *host)
 {
-	int i, err;
+	/* LGE_CHANGE_S, [bill.jung@lge.com], 2010-11-26, <Don't operate anything. For WLAN host wake up function.> */
+	#if 0
+	int i, err = 0;
 
 	BUG_ON(!host);
 	BUG_ON(!host->card);
 
 	/* Basic card reinitialization. */
 	mmc_claim_host(host);
-	err = mmc_sdio_init_card(host, host->ocr, host->card,
-				 (host->pm_flags & MMC_PM_KEEP_POWER));
-	if (!err)
-		/* We may have switched to 1-bit mode during suspend. */
+
+	/* No need to reinitialize powered-resumed nonremovable cards */
+	if (mmc_card_is_removable(host) || !mmc_card_is_powered_resumed(host))
+		err = mmc_sdio_init_card(host, host->ocr, host->card,
+				(host->pm_flags & MMC_PM_KEEP_POWER));
+	else if (mmc_card_is_powered_resumed(host)) {
+		/* We may have switched to 1-bit mode during suspend */
 		err = sdio_enable_wide(host->card);
+		if (err > 0) {
+			mmc_set_bus_width(host, MMC_BUS_WIDTH_4);
+			err = 0;
+		}
+	}
+
+#ifndef CONFIG_TIWLAN_SDIO
 	if (!err && host->sdio_irqs)
 		mmc_signal_sdio_irq(host);
+#endif
 	mmc_release_host(host);
 
 	/*
@@ -533,6 +583,27 @@ static int mmc_sdio_resume(struct mmc_host *host)
 	}
 
 	return err;
+	#endif
+	/* LGE_CHANGE_E, [bill.jung@lge.com], 2010-11-26, <Don't operate anything. For WLAN host wake up function.> */
+	
+	return 0;
+}
+
+static int mmc_sdio_power_restore(struct mmc_host *host)
+{
+	int ret;
+
+	BUG_ON(!host);
+	BUG_ON(!host->card);
+
+	mmc_claim_host(host);
+	ret = mmc_sdio_init_card(host, host->ocr, host->card,
+			(host->pm_flags & MMC_PM_KEEP_POWER));
+	if (!ret && host->sdio_irqs)
+		mmc_signal_sdio_irq(host);
+	mmc_release_host(host);
+
+	return ret;
 }
 
 static const struct mmc_bus_ops mmc_sdio_ops = {
@@ -540,6 +611,7 @@ static const struct mmc_bus_ops mmc_sdio_ops = {
 	.detect = mmc_sdio_detect,
 	.suspend = mmc_sdio_suspend,
 	.resume = mmc_sdio_resume,
+	.power_restore = mmc_sdio_power_restore,
 };
 
 
@@ -587,16 +659,28 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	card = host->card;
 
 	/*
+	 * Enable runtime PM only if supported by host+card+board
+	 */
+	if (host->caps & MMC_CAP_POWER_OFF_CARD) {
+		/*
+		 * Let runtime PM core know our card is active
+		 */
+		err = pm_runtime_set_active(&card->dev);
+		if (err)
+			goto remove;
+
+		/*
+		 * Enable runtime PM for this card
+		 */
+		pm_runtime_enable(&card->dev);
+	}
+
+	/*
 	 * The number of functions on the card is encoded inside
 	 * the ocr.
 	 */
 	funcs = (ocr & 0x70000000) >> 28;
 	card->sdio_funcs = 0;
-
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
-	if (host->embedded_sdio_data.funcs)
-		card->sdio_funcs = funcs = host->embedded_sdio_data.num_funcs;
-#endif
 
 	/*
 	 * If needed, disconnect card detection pull-up resistor.
@@ -609,7 +693,7 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 	 * Initialize (but don't add) all present functions.
 	 */
 	for (i = 0; i < funcs; i++, card->sdio_funcs++) {
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
+#ifdef CONFIG_TIWLAN_SDIO
 		if (host->embedded_sdio_data.funcs) {
 			struct sdio_func *tmp;
 
@@ -619,16 +703,23 @@ int mmc_attach_sdio(struct mmc_host *host, u32 ocr)
 			tmp->num = (i + 1);
 			card->sdio_func[i] = tmp;
 			tmp->class = host->embedded_sdio_data.funcs[i].f_class;
-			tmp->max_blksize = host->embedded_sdio_data.funcs[i].f_maxblksize;
+			tmp->max_blksize =
+				host->embedded_sdio_data.funcs[i].f_maxblksize;
 			tmp->vendor = card->cis.vendor;
 			tmp->device = card->cis.device;
 		} else {
 #endif
-			err = sdio_init_func(host->card, i + 1);
-			if (err)
-				goto remove;
-#ifdef CONFIG_MMC_EMBEDDED_SDIO
-		}
+		err = sdio_init_func(host->card, i + 1);
+		if (err)
+			goto remove;
+
+		/*
+		 * Enable Runtime PM for this func (if supported)
+		 */
+		if (host->caps & MMC_CAP_POWER_OFF_CARD)
+			pm_runtime_enable(&card->sdio_func[i]->dev);
+#ifdef CONFIG_TIWLAN_SDIO
+	}
 #endif
 	}
 

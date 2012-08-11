@@ -9,6 +9,7 @@ obj-$(CONFIG_AD525X_DPOT_SPI)	+= ad525x_dpot-spi.o
 obj-$(CONFIG_ATMEL_PWM)		+= atmel_pwm.o
 obj-$(CONFIG_ATMEL_SSC)		+= atmel-ssc.o
 obj-$(CONFIG_ATMEL_TCLIB)	+= atmel_tclib.o
+obj-$(CONFIG_BMP085)		+= bmp085.o
 obj-$(CONFIG_ICS932S401)	+= ics932s401.o
 obj-$(CONFIG_LKDTM)		+= lkdtm.o
 obj-$(CONFIG_TIFM_CORE)       	+= tifm_core.o
@@ -29,12 +30,26 @@ obj-$(CONFIG_EP93XX_PWM)	+= ep93xx_pwm.o
 obj-$(CONFIG_DS1682)		+= ds1682.o
 obj-$(CONFIG_TI_DAC7512)	+= ti_dac7512.o
 obj-$(CONFIG_UID_STAT)		+= uid_stat.o
-obj-$(CONFIG_IFACE_STAT)	+= iface_stat.o
 obj-$(CONFIG_C2PORT)		+= c2port/
 obj-$(CONFIG_IWMC3200TOP)      += iwmc3200top/
 obj-y				+= eeprom/
 obj-y				+= cb710/
 obj-$(CONFIG_VMWARE_BALLOON)	+= vmware_balloon.o
+obj-$(CONFIG_SENSORS_BH1780)	+= bh1780gli.o
 obj-$(CONFIG_WL127X_RFKILL)	+= wl127x-rfkill.o
+obj-$(CONFIG_LBEE9QMB_RFKILL)	+= lbee9qmb-rfkill.o
 obj-$(CONFIG_APANIC)		+= apanic.o
 obj-$(CONFIG_SENSORS_AK8975)	+= akm8975.o
+obj-$(CONFIG_TWL6040_VIB)	+= twl6040-vib.o
+obj-$(CONFIG_CDC_TCXO)		+= cdc_tcxo.o
+obj-y				+= ti-st/
+obj-$(CONFIG_SENSORS_LIS331DLH)	+= lis331dlh.o
+# LGE_CHANGE_S, hyun.seungjin@lge.com, 2011-02-23, Move directory from driver/hub to misc
+obj-$(CONFIG_GP2AP_PROXIMITY) += gp2ap_proximity.o
+# LGE_CHANGE_E, hyun.seungjin@lge.com, 2011-02-23, Move directory from driver/hub to misc
+# LGE_CHANGE_S, ryu.seeyeol@lge.com, 2011-01-28, Porting for Sensor Driver 
+obj-$(CONFIG_MPU_SENSORS_MPU3050)   += mpu3050/
+# LGE_CHANGE_E, ryu.seeyeol@lge.com, 2011-01-28, Porting for Sensor Driver 
+# prime@sdcmicro.com Merge from 2.6.32 [START]
+obj-$(CONFIG_TSPDRV)		+= tspdrv/
+# prime@sdcmicro.com Merge from 2.6.32 [END]
