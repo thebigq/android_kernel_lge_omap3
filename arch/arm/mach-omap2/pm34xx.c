@@ -987,6 +987,10 @@ static int omap3_pm_prepare(void)
 	disable_hlt();
 	
 // jungsoo1221.lee [Call Wake Lock Start]
+#if 0
+	twl_i2c_read_u8(TWL4030_MODULE_PM_RECEIVER,&buf_from_twl, 0x05);
+	printk("\n[TWL_RECEIVER]ADDRESS:%02x, VALUE:%02x, VIBRATOR_CFG", 0x05, buf_from_twl);
+#endif
 	twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,0x01, 0x22);
 	twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,0x01, 0x2a);
 	twl_i2c_write_u8(TWL4030_MODULE_PM_RECEIVER,0x0f, 0x88);

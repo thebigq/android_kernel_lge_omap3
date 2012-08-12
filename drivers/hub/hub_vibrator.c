@@ -44,16 +44,26 @@
  #endif
 
 
+#define USE_32_CLK
+#ifdef USE_32_CLK
+#define PWM_DUTY_MAX     0xAEFFFFFF//use 32k clock source ok
+#else
+#define PWM_DUTY_MAX     0x387638
+#endif // USE_32_CLK
+
 #define HUB_VIBE_GPIO_EN 			57
 #define HUB_VIBE_PWM				56
 #define HUB_VIBE_GPTIMER_NUM 		10
 
-#define PWM_DUTY_MAX     1158 /* 22.43 kHz */
 #define PLTR_VALUE		(0xFFFFFFFF - PWM_DUTY_MAX)
 #define PWM_DUTY_HALF	(0xFFFFFFFF - (PWM_DUTY_MAX >> 1))
 struct omap_dm_timer *omap_vibrator_timer = NULL;
 
 #ifdef USE_SUBPM
+#if defined(CONFIG_REGULATOR_LP8720)
+extern void subpm_set_output(subpm_output_enum outnum, int onoff);
+extern void subpm_output_enable(void);
+#endif
 #else
 static struct regulator *vibe_regulator = NULL;
 #endif
@@ -66,6 +76,9 @@ struct timed_vibrator_data {
 	int 		max_timeout;
 	u8 		active_low;
 };
+
+static struct work_struct  vibrator_timeout;
+static struct work_struct  vibrator_start;
 
 static void hub_vibrator_gpio_enable (int enable)
 {
@@ -98,34 +111,47 @@ static inline void hub_vibrator_LDO_enable(int val)
 
 static int hub_vibrator_intialize(void)
 {
-	/* Disable amp */
-	hub_vibrator_gpio_enable(0);
-
 	/* Select clock */
 	omap_dm_timer_enable(omap_vibrator_timer);
-	omap_dm_timer_set_source(omap_vibrator_timer, OMAP_TIMER_SRC_SYS_CLK);
+#ifdef USE_32_CLK
+        omap_dm_timer_set_source(omap_vibrator_timer, OMAP_TIMER_SRC_32_KHZ);
+#else
+        omap_dm_timer_set_source(omap_vibrator_timer, OMAP_TIMER_SRC_SYS_CLK);
+#endif
 
 	/* set a period */
 	omap_dm_timer_set_load(omap_vibrator_timer, 1, PLTR_VALUE);
 
+#if 0
+
 	/* set a duty */
 	omap_dm_timer_set_match(omap_vibrator_timer, 1, PWM_DUTY_HALF);
 	omap_dm_timer_set_pwm(omap_vibrator_timer, 0, 1, OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE);
+	omap_dm_timer_disable(omap_vibrator_timer);
+#endif
 	
 	return 0;
 }
 
+static atomic_t vibe_timer_state;
+spinlock_t vibe__timer_lock;
+
 static int hub_vibrator_force_set(int nForce)
 {
 
+#if 0
 	unsigned int nTmp;
+#endif
+	unsigned long   flags;
 
 	DEBUG_MSG("[!] %s() - nForce : %d.\n", __func__, nForce);
 
 
+#if 0
 	/* Check the Force value with Max and Min force value */
 	if (nForce > 127) nForce = 127;
 	if (nForce < -127) nForce = -127;
+#endif
 	
 	//woochan.seo, 20101027, INSERT, for reduce the power of vibration. I can't use the 'cast' sentence.
 	//nForce *= 0.85;		//ERR. I cannot use the 'cast' sentence.
@@ -137,24 +163,44 @@ static int hub_vibrator_force_set(int nForce)
 	 nForce = 0;
 #endif
 	//woochan.seo, 20101027, INSERT, for reduce the power of vibration. I can't use the 'cast' sentence.
-	
-	if (nForce == 0) {
+
+	spin_lock_irqsave(&vibe__timer_lock, flags);	
+	if (atomic_read(&vibe_timer_state) && nForce == 0) {
 		hub_vibrator_gpio_enable(0);
 		omap_dm_timer_stop(omap_vibrator_timer);		
-	} else {
-		hub_vibrator_gpio_enable(1);
+		omap_dm_timer_disable(omap_vibrator_timer);
+		atomic_set(&vibe_timer_state, 0);
+	} else if (!atomic_read(&vibe_timer_state) && nForce) {
+		atomic_set(&vibe_timer_state, 1);
+#if 0
 		nTmp = 0xFFFFFFF7 - (((127 - nForce) * 9) >> 1);
-		omap_dm_timer_set_match(omap_vibrator_timer, 1, nTmp);
-		omap_dm_timer_start(omap_vibrator_timer);		
+#endif
+		hub_vibrator_intialize();
+		omap_dm_timer_set_match(omap_vibrator_timer, 1, PWM_DUTY_HALF);
+		omap_dm_timer_set_pwm(omap_vibrator_timer, 0, 1, OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE);
+		omap_dm_timer_start(omap_vibrator_timer);
+		hub_vibrator_gpio_enable(1);
 	}
+	spin_unlock_irqrestore(&vibe__timer_lock, flags);
 	return 0;
+}
+
+
+static void vibrator_enable_work(struct work_struct *wq)
+{
+    hub_vibrator_force_set(127);
+}
+
+static void vibrator_timeout_work(struct work_struct *wq)
+{
+    hub_vibrator_force_set(0);
 }
 
 static enum hrtimer_restart vibrator_timer_func(struct hrtimer *timer)
 {
 	DEBUG_MSG("[!] %s() start.\n", __func__);
 
-	hub_vibrator_force_set(0);
+        schedule_work(&vibrator_timeout);
 	return HRTIMER_NORESTART;
 }
 
@@ -189,10 +235,10 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 	if (value > 0) {
 		if (value > data->max_timeout)
 			value = data->max_timeout;
-		hub_vibrator_force_set(127); /* set Max Gain. */
+		schedule_work(&vibrator_start);
 		hrtimer_start(&data->timer, ktime_set(value / 1000, (value % 1000) * 1000000), HRTIMER_MODE_REL);
 	} else {
-		hub_vibrator_force_set(0);
+                schedule_work(&vibrator_timeout);
 	}
 
 	spin_unlock_irqrestore(&data->lock, flags);
@@ -237,11 +283,16 @@ static int vibrator_probe(struct platform_device *dev)
 	}
 	omap_dm_timer_disable(omap_vibrator_timer);	
 
-	hub_vibrator_intialize();
+	//hub_vibrator_intialize();
+
+        INIT_WORK(&vibrator_timeout, vibrator_timeout_work);
+        INIT_WORK(&vibrator_start, vibrator_enable_work);
 
 	hrtimer_init(&hub_vibrator_data.timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	hub_vibrator_data.timer.function = vibrator_timer_func;
 	spin_lock_init(&hub_vibrator_data.lock);
+	spin_lock_init(&vibe__timer_lock);
+	atomic_set(&vibe_timer_state, 0);
 
 	ret = timed_output_dev_register(&hub_vibrator_data.dev);
 	if (ret < 0) {
@@ -249,7 +300,7 @@ static int vibrator_probe(struct platform_device *dev)
 		ret = -ENODEV;
 		goto err3;
 	}
-	hub_vibrator_LDO_enable(1); /* Vibrator LDO Power On */		
+	hub_vibrator_LDO_enable(1); /* Vibrator LDO Power On */
 
 	printk("LGE: Hub Vibrator Initialization was done\n");
 	
@@ -284,8 +335,8 @@ static int vibrator_suspend(struct platform_device *pdev, pm_message_t state)
 	printk("LGE: Hub Vibrator Driver Suspend\n");
 	hub_vibrator_LDO_enable(0);
 	hub_vibrator_force_set(0);
-	omap_dm_timer_stop(omap_vibrator_timer);
-	omap_dm_timer_disable(omap_vibrator_timer);
+	/*omap_dm_timer_stop(omap_vibrator_timer);
+	omap_dm_timer_disable(omap_vibrator_timer);*/
 	return 0;
 }
 
@@ -293,7 +344,7 @@ static int vibrator_resume(struct platform_device *pdev)
 {
 	printk("LGE: Hub Vibrator Driver Resume\n");
 	hub_vibrator_LDO_enable(1);
-	hub_vibrator_intialize();
+	//hub_vibrator_intialize();
 	return 0;
 }
 #endif

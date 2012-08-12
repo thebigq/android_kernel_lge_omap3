@@ -58,8 +58,11 @@ static bool g_bAmpEnabled = false;
 #define HUB_VIBE_PWM				56
 #define HUB_VIBE_GPTIMER_NUM		10
 
+#if 0
+#define PWM_DUTY_MAX	 1158 /*1158 /* 22.43 kHz */
+#endif
+#define PWM_DUTY_MAX	 96336
 
-/* LGE_CHANGE_S, ryu.seeyeol@lge.com, 2011-03-21, Change the PWM Clock Source */
 #if 0
 #define USE_SYS_CLK
 #undef USE_32_CLK
@@ -77,7 +80,6 @@ static bool g_bAmpEnabled = false;
 #define PWM_DUTY_MAX	 0x387638//use sys clock 26MHz source
 #endif // USE_32_CLK
 #endif // if 0
-/* LGE_CHANGE_E, ryu.seeyeol@lge.com, 2011-03-21, Change the PWM Clock Source */
 
 
 #define PLTR_VALUE		(0xFFFFFFFF - PWM_DUTY_MAX)
@@ -123,23 +125,19 @@ static void vib_generatePWM(int on)
 		/* Select clock */
 		omap_dm_timer_enable(omap_vibrator_timer);
 
-/* LGE_CHANGE_S, ryu.seeyeol@lge.com, 2011-03-21, Change the PWM Clock Source */
 #ifdef USE_32_CLK
 		omap_dm_timer_set_source(omap_vibrator_timer, OMAP_TIMER_SRC_32_KHZ);
 #else
 		omap_dm_timer_set_source(omap_vibrator_timer, OMAP_TIMER_SRC_SYS_CLK);
 #endif
-/* LGE_CHANGE_E, ryu.seeyeol@lge.com, 2011-03-21, Change the PWM Clock Source */
 
 		/* set a period */
 		omap_dm_timer_set_load(omap_vibrator_timer, 1, PLTR_VALUE);
 
 		/* set a duty */
 		omap_dm_timer_set_match(omap_vibrator_timer, 1, PWM_DUTY_HALF);
-/* LGE_CHANGE_S, ryu.seeyeol@lge.com, 2011-03-21, Change the PWM Clock Source */
 		omap_dm_timer_set_pwm(omap_vibrator_timer, 0, 1, OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE);
 		//omap_dm_timer_set_pwm(omap_vibrator_timer, 1, 1, OMAP_TIMER_TRIGGER_OVERFLOW_AND_COMPARE);
-/* LGE_CHANGE_E, ryu.seeyeol@lge.com, 2011-03-21, Change the PWM Clock Source */
 		omap_dm_timer_start(omap_vibrator_timer);		
 	}
 	else {
@@ -214,10 +212,11 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Terminate( void )
     	return VIBE_S_SUCCESS;
 }
 
+bool bInTestMode = 0;
 /*** Called by the real-time loop to set PWM duty cycle, and enable amp if required*/
 IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Set( VibeUInt8 nActuatorIndex, VibeInt8 nForce )
 {
-/* LGE_CHANGE_S, ryu.seeyeol@lge.com, 2011-05-13, This function executes twice.. duplicate vib_generatePWM() */
+
 #if 0 
 	unsigned int nTmp;
 	
@@ -227,6 +226,11 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Set( VibeUInt8 nActuatorIndex, Vibe
 	if (nForce > 127) nForce = 127;
 	if (nForce < -127) nForce = -127;
 	
+	if(bInTestMode)
+		   {		   
+			 if(nForce > 0 && nForce < 125) 
+			 	nForce = 125; 
+    	}
 	if (nForce == 0) {
 		hub_vibrator_gpio_enable(0);
 		omap_dm_timer_stop(omap_vibrator_timer);		
@@ -237,6 +241,7 @@ IMMVIBESPIAPI VibeStatus ImmVibeSPI_ForceOut_Set( VibeUInt8 nActuatorIndex, Vibe
 		omap_dm_timer_start(omap_vibrator_timer);		
 	}
 #endif
+
 	return VIBE_S_SUCCESS;
 }
 

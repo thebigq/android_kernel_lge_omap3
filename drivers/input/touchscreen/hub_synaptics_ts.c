@@ -30,9 +30,9 @@
 #include <linux/delay.h> //20101221 seven.kim@lge.com to use mdelay
 #include <linux/wakelock.h> 	//20102121 seven.kim@lge.com to use wake_lock
 
-/* 20110331 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
+#ifdef CONFIG_LGE_DVFS
 #include <linux/dvs_suite.h>
-/* 20110331 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
+#endif	// CONFIG_LGE_DVFS
 
 #include "synaptics_ts_firmware.h"
 #include "synaptics_ts_firmware_lgit.h"
@@ -51,10 +51,10 @@
 #define FEATURE_LGE_TOUCH_JITTERING_IMPROVE
 #endif //end of seven
 #define FEATURE_LGE_TOUCH_GHOST_FINGER_IMPROVE
-#define FEATURE_LGE_TOUCH_GRIP_SUPPRESSION //20101215 seven.kim@lge.com
+//#define FEATURE_LGE_TOUCH_GRIP_SUPPRESSION 
 
-#define FEATURE_LGE_TOUCH_REAL_TIME_WORK_QUEUE	//20101221 seven.kim@lge.com to use real time work queue
-#define FEATURE_LGE_TOUCH_ESD_DETECT					//20101221 seven.kim@lge.com to detect Register change by ESD
+#define FEATURE_LGE_TOUCH_REAL_TIME_WORK_QUEUE	
+#define FEATURE_LGE_TOUCH_ESD_DETECT					
 /*===========================================================================
                 DEFINITIONS AND DECLARATIONS FOR MODULE
 
@@ -63,9 +63,9 @@ and other items needed by this module.
 ===========================================================================*/
 
 static struct workqueue_struct *synaptics_wq;
-// 20100826 jh.koo@lge.com, for stable initialization [START_LGE]
+
 static struct i2c_client *hub_ts_client = NULL;
-// 20100826 jh.koo@lge.com, for stable initialization [END_LGE]
+
 
 struct synaptics_ts_data {
 	uint16_t addr;
@@ -81,26 +81,26 @@ struct synaptics_ts_data {
 	int reported_finger_count;
 	int8_t sensitivity_adjust;
 	int (*power)(int on);
-// 20100504 jh.koo@lge.com, correction of finger space [START_LGE]
+
 	unsigned int count;
 	int x_lastpt;
 	int y_lastpt;
-// 20100504 jh.koo@lge.com, correction of finger space [END_LGE]	
+
 	struct early_suspend early_suspend;
-// 20100826 jh.koo@lge.com, for stable initialization [START_LGE]
+
 	struct delayed_work init_delayed_work;
-// 20100826 jh.koo@lge.com, for stable initialization [END_LGE]
-	unsigned char product_value; //product_value=0:misung panel  product_value=1 : LGIT panel
+
+	unsigned char product_value; 
 };
 
-// 20101203 kyungyoon.kim@lge.com, Touch KEY LED [START_LGE]
+
 enum key_leds {
 	MENU,
 	HOME,
 	BACK,
 	SEARCH,
 };
-// 20101203 kyungyoon.kim@lge.com, Touch KEY LED [END_LGE]
+
 static int init_stabled = -1;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -108,19 +108,18 @@ static void synaptics_ts_early_suspend(struct early_suspend *h);
 static void synaptics_ts_late_resume(struct early_suspend *h);
 #endif
 
-/* [START] seven.kim@lge.com to avoid touch lockup in case of HW_Rev_B and C */
-static uint32_t  Synaptics_Check_Touch_Interrupt_Status();
-/* [END] seven.kim@lge.com to avoid touch lockup in case of HW_Rev_B and C */
 
-// 20101203 kyungyoon.kim@lge.com, Touch KEY LED [START_LGE]
+static uint32_t  Synaptics_Check_Touch_Interrupt_Status();
+
+
+
 extern void touchkey_pressed(enum key_leds id);
 extern unsigned int system_rev;
-// 20101203 kyungyoon.kim@lge.com, Touch KEY LED [END_LGE]
+
 #define TOUCH_INT_N_GPIO						35
 
-/* 20110317 seven.kim@lge.com for mass product issue [START] */
+
 extern int lcd_off_boot;
-/* 20110317 seven.kim@lge.com for mass product issue [END] */
 
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
@@ -159,7 +158,6 @@ extern int lcd_off_boot;
 #define TS_SNTS_GET_SLEEP_MODE(device_control_reg) \
 		(device_control_reg&0x07)
 
-
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /*                                                                         */
 /*                       CONSTANTS DATA DEFINITIONS                        */
@@ -170,10 +168,7 @@ extern int lcd_off_boot;
 #define TOUCH_EVENT_BUTTON						1
 #define TOUCH_EVENT_ABS							2
 
-
-
-#define SYNAPTICS_FINGER_MAX					5  	// [20101111:geayoung.baek@lge.com] Max Touch 5EA
-
+#define SYNAPTICS_FINGER_MAX					5  	
 
 #define SYNAPTICS_TM1576_PRODUCT_ID				"TM1576"
 #define SYNAPTICS_TM1576_RESOLUTION_X			1036
@@ -192,8 +187,6 @@ extern int lcd_off_boot;
 #define SYNAPTICS_TM1738_RESOLUTION_Y			1896
 #define SYNAPTICS_TM1738_LCD_ACTIVE_AREA			1728
 #define SYNAPTICS_TM1738_BUTTON_ACTIVE_AREA		1805
-
-
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /*                                                                         */
@@ -230,7 +223,7 @@ extern int lcd_off_boot;
 #define SYNAPTICS_CONTROL_SLEEP					1<<0
 #define SYNAPTICS_CONTROL_NOSLEEP				1<<2
 
-#ifdef FEATURE_LGE_TOUCH_ESD_DETECT //20101221 seven.kim@lge.com to detect Register change by ESD
+#ifdef FEATURE_LGE_TOUCH_ESD_DETECT 
 #define SYNAPTICS_CONTROL_CONFIGURED				1<<7
 #define SYNAPTICS_RIM_DEVICE_RESET				1<<0
 #endif /*FEATURE_LGE_TOUCH_ESD_DETECT*/
@@ -282,7 +275,7 @@ typedef struct
 	fingers_data[x][4] : xth finger's Z (pressure)
 	*/
 	// Etc...
-#if 0		// [20101027:geayoung.baek@lge.com] Not Used
+#if 0		
 	unsigned char gesture_flag0;							//0x4A
 	unsigned char gesture_flag1;							//0x4B
 	unsigned char pinch_motion_X_flick_distance;			//0x4C
@@ -317,10 +310,7 @@ static uint16_t SYNAPTICS_PANEL_BUTTON_MIN_Y;
 
 unsigned char  touch_fw_version = 0;
 
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time.
-int sent_event[SYNAPTICS_FINGER_MAX] = {0,};
-
-struct wake_lock ts_wake_lock; //20101221 seven.kim@lge.com for ts recovery
+struct wake_lock ts_wake_lock; 
 
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 /*                                                                         */
@@ -328,7 +318,7 @@ struct wake_lock ts_wake_lock; //20101221 seven.kim@lge.com for ts recovery
 /*                                                                         */
 /*- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -*/
 
-// 20101022 joseph.jung@lge.com touch smooth moving improve [START]
+
 #ifdef FEATURE_LGE_TOUCH_MOVING_IMPROVE
 #define ADJUST_VAL				4
 #define ADJUST_BASIS_VALUE		20
@@ -346,7 +336,7 @@ static void touch_adjust_position(int finger_num)
 	}
 }
 #endif /* FEATURE_LGE_TOUCH_MOVING_IMPROVE */
-// 20101022 joseph.jung@lge.com touch smooth moving improve [END]
+
 
 #ifdef FEATURE_LGE_TOUCH_GHOST_FINGER_IMPROVE
 #define MELT_CONTROL	0xF0
@@ -361,24 +351,23 @@ static int ghost_finger_1 = 0; // remove for ghost finger
 static int ghost_finger_2 = 0;
 static int pressed = 0;
 static unsigned long pressed_time;
-/* 20110225 seven.kim@lge.com to prevent ghost finger for HW Drop TEST [START] */
+
 static int ghost_count = 0;
-/* 20110225 seven.kim@lge.com to prevent ghost finger for HW Drop TEST [END] */
+
 #endif
 
-#ifdef FEATURE_LGE_TOUCH_ESD_DETECT //20101221 seven.kim@lge.com to detect Register change by ESD
+#ifdef FEATURE_LGE_TOUCH_ESD_DETECT 
 extern  struct i2c_client *aat2870_i2c_client;
 extern  void aat2870_touch_ldo_enable(struct i2c_client *client, int on);
 static bool  Synatics_ts_touch_Recovery();
-static uint32_t Synaptics_Check_Touch_Interrupt_Status();
 #endif /*FEATURE_LGE_TOUCH_ESD_DETECT*/
 
-/* 20110216 seven.kim@lge.com to follow android sleep/resume flow [START] */
+
 //static atomic_t g_synaptics_ts_resume_flag;
 //static atomic_t g_synaptics_ts_suspend_flag;
-/* 20110216 seven.kim@lge.com to follow android sleep/resume flow [END] */
 
-/* [START] seven.kim@lge.com to recover in case of I2C Fail */
+
+
 int g_touch_read_cnt = 0; 		//20110407 ATS TEST FAIL
 int g_touch_restart_flag = 0;		//20110407 ATS TEST FAIL
 s32 synaptics_ts_i2c_read_block_data(struct i2c_client *client, u8 command,
@@ -390,12 +379,12 @@ s32 synaptics_ts_i2c_read_block_data(struct i2c_client *client, u8 command,
 	if (status < 0)
 	{
 		struct synaptics_ts_data *ts = i2c_get_clientdata(client);
-
+		pr_warning("%s(). error: %d \n",__func__, status);
 #if 1 //20110309 seven for late_resume_lcd
 		g_touch_read_cnt++;
 		if(g_touch_restart_flag ==0 && g_touch_read_cnt > 3)
 		{
-			printk("%s : Int Pin : %s \n",__func__, Synaptics_Check_Touch_Interrupt_Status()?"LOW":"HIGH");
+			//printk("%s : Int Pin : %s \n",__func__, Synaptics_Check_Touch_Interrupt_Status()?"LOW":"HIGH");
 
 			g_touch_restart_flag = 1;
 		        Synatics_ts_touch_Recovery();
@@ -405,7 +394,6 @@ s32 synaptics_ts_i2c_read_block_data(struct i2c_client *client, u8 command,
 			schedule_delayed_work(&ts->init_delayed_work, msecs_to_jiffies(400));
 		}
 #endif //20110309 seven for late_resume_lcd
-		
 	}
 	else
 		g_touch_read_cnt = 0;
@@ -421,7 +409,7 @@ s32 synaptics_ts_i2c_read_byte_data(struct i2c_client *client, u8 command)
 	if (status < 0)
 	{
 		struct synaptics_ts_data *ts = i2c_get_clientdata(client);
-		printk("%s \n",__func__);
+		pr_warning("%s(). error: %d \n",__func__, status);
 
 #if 0 //20110309 seven for late_resume_lcd
 		/* sensor recover when i2c fail */
@@ -446,7 +434,7 @@ s32 synaptics_ts_i2c_write_block_data(struct i2c_client *client, u8 command,
 	if (status < 0)
 	{
 		struct synaptics_ts_data *ts = i2c_get_clientdata(client);
-		printk("%s \n",__func__);
+		pr_warning("%s(). error: %d \n",__func__, status);
 
 #if 0 //20110309 seven for late_resume_lcd
 		/* sensor recover when i2c fail */
@@ -469,7 +457,7 @@ s32 synaptics_ts_i2c_write_byte_data(struct i2c_client *client, u8 command, u8 v
 	if (status < 0)
 	{
 		struct synaptics_ts_data *ts = i2c_get_clientdata(client);
-		printk("%s \n",__func__);
+		pr_warning("%s(). error: %d \n",__func__, status);
 
 #if 0 //20110309 seven for late_resume_lcd
 		/* sensor recover when i2c fail */
@@ -483,17 +471,17 @@ s32 synaptics_ts_i2c_write_byte_data(struct i2c_client *client, u8 command, u8 v
 	
 	return status;
 }
-/* [END] seven.kim@lge.com to recover in case of I2C Fail */
 
-// 20100826 jh.koo@lge.com, for stable initialization [START_LGE]
+
+
 static void synaptics_ts_init_delayed_work(struct work_struct *work)
 {
 	struct synaptics_ts_data *ts = container_of(work, struct synaptics_ts_data, work);
 	int ret;
 
-//For_Resume_Speed	pr_warning("%s() : Touch Delayed Work : Start!!\n", __func__);
+/*For_Resume_Speed*/pr_warning("%s() : Touch Delayed Work : Start!!\n", __func__);
 
-	/* [START] seven.kim@lge.com to avoid touch lockup in case of HW_Rev_B and C */
+	
 	//if (system_rev < 4)
 	{
 		uint32_t  pinValue = 0;
@@ -506,32 +494,32 @@ static void synaptics_ts_init_delayed_work(struct work_struct *work)
 			synaptics_ts_i2c_read_block_data(hub_ts_client, SYNAPTICS_DATA_BASE_REG, sizeof(tmp_ts_reg_data), (u8 *)&tmp_ts_reg_data);
 		}
 	}
-	/* [END] seven.kim@lge.com to avoid touch lockup in case of HW_Rev_B and C */
 	
-	//[START] 20101226 seven.kim@lge.com to prevent touch interrupt in booting time
+	
+	
 	synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_RIM_CONTROL_INTERRUPT_ENABLE, 0x00); //interrupt disable
 	
 	disable_irq(hub_ts_client->irq);
-	//[END] 20101226 seven.kim@lge.com to prevent touch interrupt in booting time
+	
 
 	synaptics_ts_i2c_read_block_data(hub_ts_client, SYNAPTICS_DATA_BASE_REG, sizeof(ts_reg_data), (u8 *)&ts_reg_data);
 	
-	/* [START] 20110110 seven.kim@lge.com touch sensing test F/Up */
-	//if(system_rev < 4)
-	//{
-	//synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_CONTROL_REG, SYNAPTICS_CONTROL_NOSLEEP); /* wake up */
+	
+	if(system_rev < 4)
+	{
+	synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_CONTROL_REG, SYNAPTICS_CONTROL_NOSLEEP); /* wake up */
 		synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_CONTROL_REG, SYNAPTICS_CONTROL_CONFIGURED );
-	//}
-	//else
-	//{
+	}
+	else
+	{
 	synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_CONTROL_REG, (SYNAPTICS_CONTROL_CONFIGURED | SYNAPTICS_CONTROL_NOSLEEP));
-	//20110211 seven.kim@lge.com to disable palm detection [START]
+	
 	synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_2D_GESTURE_ENABLES_2, 0x00);
-	//20110211 seven.kim@lge.com to disable palm detection [end]
-	//}
-	/* [START] 20110110 seven.kim@lge.com touch sensing test F/Up */
+	
+	}
+	
 
-// 20101022 joseph.jung@lge.com touch smooth moving improve [START]
+
 #ifdef FEATURE_LGE_TOUCH_MOVING_IMPROVE
 	ret = synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_DELTA_X_THRES_REG, 0x01);
 	ret = synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_DELTA_Y_THRES_REG, 0x01);
@@ -539,7 +527,7 @@ static void synaptics_ts_init_delayed_work(struct work_struct *work)
 	ret = synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_DELTA_X_THRES_REG, /*0x03*/0x01);
 	ret = synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_DELTA_Y_THRES_REG, /*0x03*/0x01);
 #endif /* FEATURE_LGE_TOUCH_MOVING_IMPROVE */
-// 20101022 joseph.jung@lge.com touch smooth moving improve [END]
+
 #ifdef FEATURE_LGE_TOUCH_GHOST_FINGER_IMPROVE
 	synaptics_ts_i2c_write_byte_data(hub_ts_client, MELT_CONTROL, MELT);
 //	pr_warning("Touch MELT\n");
@@ -547,16 +535,16 @@ static void synaptics_ts_init_delayed_work(struct work_struct *work)
 
 	init_stabled = 1;
 
-	//[START] 20101226 seven.kim@lge.com to prevent touch interrupt in booting time
+	
 	enable_irq(hub_ts_client->irq);
 	synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_RIM_CONTROL_INTERRUPT_ENABLE, 0x07); //interrupt enable
-	//[END] 20101226 seven.kim@lge.com to prevent touch interrupt in booting time	
+	
 
 //For_Resume_Speed	pr_warning("%s() : Touch Delayed Work : End!!\n", __func__);
 }
-// 20100826 jh.koo@lge.com, for stable initialization [END_LGE]
 
-// 20101215 seven@lge.com grip suppression [START]
+
+
 #ifdef FEATURE_LGE_TOUCH_GRIP_SUPPRESSION
 static int g_gripIgnoreRangeValue = 0;
 static int g_receivedPixelValue = 0;
@@ -588,11 +576,11 @@ ssize_t touch_gripsuppression_store(struct device *dev, struct device_attribute 
 	return count;
 }
 
-DEVICE_ATTR(gripsuppression, 0664, touch_gripsuppression_show, touch_gripsuppression_store);
+DEVICE_ATTR(gripsuppression, 0644, touch_gripsuppression_show, touch_gripsuppression_store);
 #endif /* FEATURE_LGE_TOUCH_GRIP_SUPPRESSION */
-// 20101215 seven@lge.com grip suppression [END]
 
-/* [START] seven.kim@lge.com To avoid touch sensor lock-up & data missing in touch release*/
+
+
 static /*uint8_t*/uint32_t  Synaptics_Check_Touch_Interrupt_Status()
 {
 		uint32_t pinValue = 0;
@@ -600,69 +588,36 @@ static /*uint8_t*/uint32_t  Synaptics_Check_Touch_Interrupt_Status()
 
 		return !pinValue;
 }
-/* [END] seven.kim@lge.com To avoid touch sensor lock-up & data missing in touch release*/
+
 
 static void synaptics_ts_work_func(struct work_struct *work)
 {
 	struct synaptics_ts_data *ts = container_of(work, struct synaptics_ts_data, work);
 	int i;
 	int finger_count = 0;
-
-	//20110621 yongman.kwon@lge.com [LS855] adding to prevent ESD.
-	unsigned char statusReg;
+#ifdef CONFIG_TOUCHSCREEN_ANDROID_VIRTUALKEYS
+        unsigned long timeout_jiffies = 0;
+#endif
 	
+
 	if(init_stabled != 1)
 		return;
 
 	pr_debug("[TOUCH] synaptics_ts_work_func() : START \n" );
 
-	statusReg = synaptics_ts_i2c_read_byte_data(ts->client, SYNAPTICS_DATA_BASE_REG);
 
-	//count++;
-
-	//20110621 yongman.kwon@lge.com [LS855] adding to prevent ESD. [START]
-	//0x03 means ESD detect from IC.
-
-	//printk("statusReg : %d\n", statusReg);
-	
-	if((statusReg&0x03) == 0x03)
-	{
-	//	printk("Touch IC Reset\n");
-
-		Synatics_ts_touch_Recovery();
-		schedule_delayed_work(&ts->init_delayed_work, msecs_to_jiffies(400));
-		memset(&ts_reg_data, 0x0, sizeof(ts_sensor_data));
-		memset(&prev_ts_data, 0x0, sizeof(ts_finger_data));
-		memset(&curr_ts_data, 0x0, sizeof(ts_finger_data));
-	}
-	else if((statusReg&0x80) == 0x80)
-	{
-	//	printk("un configured detect \n");
-
-		schedule_delayed_work(&ts->init_delayed_work, msecs_to_jiffies(400));
-		memset(&ts_reg_data, 0x0, sizeof(ts_sensor_data));
-		memset(&prev_ts_data, 0x0, sizeof(ts_finger_data));
-		memset(&curr_ts_data, 0x0, sizeof(ts_finger_data));	
-	}
-	//20110621 yongman.kwon@lge.com [LS855] adding to prevent ESD. [END]	
-	
-
-/* [START] seven.kim@lge.com To avoid touch sensor lock-up & data missing in touch release */
 do{	
-/* [END] seven.kim@lge.com To avoid touch sensor lock-up & data missing in touch release */	
-	synaptics_ts_i2c_read_block_data(ts->client, SYNAPTICS_DATA_BASE_REG, sizeof(ts_reg_data), (u8 *)&ts_reg_data);
 
-	//yongman.kwon 
-	finger_count = 0; 
+	synaptics_ts_i2c_read_block_data(ts->client, SYNAPTICS_DATA_BASE_REG, sizeof(ts_reg_data), (u8 *)&ts_reg_data);
 	
-	/* 20110211 seven.kim@lge.com to detect palm [START] */
-	#if 0 //seven blocked 20110225
+	
+	#if 0 
 	{
 		s32 dummy_read_byte;
 		dummy_read_byte = synaptics_ts_i2c_read_byte_data(ts->client, SYNAPTICS_2D_GESTURE_FINGER_0 );
 	}
 	#endif
-	/* 20110211 seven.kim@lge.com to detect palm [START] */
+
 	
 	if(ts_reg_data.interrupt_status_reg & SYNAPTICS_INT_ABS0)
 	{
@@ -681,7 +636,7 @@ do{
 				curr_ts_data.X_position[i] = (int)TS_SNTS_GET_X_POSITION(ts_reg_data.fingers_data[i][0], ts_reg_data.fingers_data[i][2]);
 				curr_ts_data.Y_position[i] = (int)TS_SNTS_GET_Y_POSITION(ts_reg_data.fingers_data[i][1], ts_reg_data.fingers_data[i][2]);
 
-// 20101022 joseph.jung@lge.com touch smooth moving improve [START]
+
 #ifdef FEATURE_LGE_TOUCH_MOVING_IMPROVE
 				touch_adjust_position(i);
 #endif
@@ -693,17 +648,17 @@ do{
 					curr_ts_data.Y_position[i] = prev_ts_data.Y_position[i];
 				}
 #endif
-// 20101022 joseph.jung@lge.com touch smooth moving improve [END]
 
-				#ifdef FEATURE_LGE_TOUCH_GRIP_SUPPRESSION // 20101215 seven@lge.com grip suppression [start]
+
+				#ifdef FEATURE_LGE_TOUCH_GRIP_SUPPRESSION 
 				if ( (g_gripIgnoreRangeValue > 0) && ( (curr_ts_data.X_position[i] <= g_gripIgnoreRangeValue ) || 
 															(curr_ts_data.X_position[i] >= (SYNAPTICS_PANEL_MAX_X - g_gripIgnoreRangeValue) )) )
 				{
 					pr_debug("[TOUCH] Girp Region Pressed. IGNORE!!!\n" );
 				}
 				else
+				#endif 
 				{
-				#endif // 20101215 seven@lge.com grip suppression [start]
 
 					if ((((ts_reg_data.fingers_data[i][3] & 0xf0) >> 4) - (ts_reg_data.fingers_data[i][3] & 0x0f)) > 0)
 						curr_ts_data.width[i] = (ts_reg_data.fingers_data[i][3] & 0xf0) >> 4;
@@ -737,27 +692,39 @@ do{
 					         pressed++;
 					 }
 #endif
+#ifdef CONFIG_TOUCHSCREEN_ANDROID_VIRTUALKEYS
+					 curr_event_type = TOUCH_EVENT_ABS;
+#else
 					if((curr_ts_data.Y_position[i] < SYNAPTICS_PANEL_LCD_MAX_Y && prev_event_type == TOUCH_EVENT_NULL) || prev_event_type == TOUCH_EVENT_ABS)
 						curr_event_type = TOUCH_EVENT_ABS;
 					else if((curr_ts_data.Y_position[i] >= SYNAPTICS_PANEL_LCD_MAX_Y && prev_event_type == TOUCH_EVENT_NULL) || prev_event_type == TOUCH_EVENT_BUTTON)
 						curr_event_type = TOUCH_EVENT_BUTTON;
+#endif
 
 					if(curr_event_type == TOUCH_EVENT_ABS)
 					{
+#ifndef CONFIG_TOUCHSCREEN_ANDROID_VIRTUALKEYS
 						if(curr_ts_data.Y_position[i] < SYNAPTICS_PANEL_LCD_MAX_Y)
+#endif
 						{
+#ifdef CONFIG_TOUCHSCREEN_ANDROID_VIRTUALKEYS
+                                                                        if(curr_ts_data.Y_position[i] >= SYNAPTICS_PANEL_LCD_MAX_Y) {
+										touchkey_pressed((int)((curr_ts_data.X_position[i]*4)/SYNAPTICS_PANEL_MAX_X));
+                                                                                if (!prev_ts_data.touch_status[i]) {
+                                                                                        timeout_jiffies = jiffies + msecs_to_jiffies(300);
+                                                                                } else if (time_is_after_eq_jiffies(timeout_jiffies)) {
+                                                                                        input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
+                                                                                        input_mt_sync(ts->input_dev);
+                                                                                }
+                                                                        }
+#endif
 							input_report_abs(ts->input_dev, ABS_MT_POSITION_X, curr_ts_data.X_position[i]);
 							input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, curr_ts_data.Y_position[i]);
 							input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, curr_ts_data.pressure[i]);
 							input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, curr_ts_data.width[i]);
 							
 							input_mt_sync(ts->input_dev);
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [START]
-							sent_event[i] = 1;
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [END]
-							
-							//pr_debug("[TOUCH-1] (X, Y) = (%d, %d), z = %d, w = %d\n", curr_ts_data.X_position[i], curr_ts_data.Y_position[i], curr_ts_data.pressure[i], curr_ts_data.width[i]);
-							//printk("[TOUCH-1] (X, Y) = (%d, %d), z = %d, w = %d\n", curr_ts_data.X_position[i], curr_ts_data.Y_position[i], curr_ts_data.pressure[i], curr_ts_data.width[i]);
+							pr_debug("[TOUCH-1] (X, Y) = (%d, %d), z = %d, w = %d\n", curr_ts_data.X_position[i], curr_ts_data.Y_position[i], curr_ts_data.pressure[i], curr_ts_data.width[i]);
 						}
 					}
 					else if(curr_event_type == TOUCH_EVENT_BUTTON)
@@ -768,15 +735,12 @@ do{
 							{
 								if(!prev_ts_data.touch_status[i])
 								{
-								//	input_report_key(ts->input_dev, KEY_MENU, 1); //seven blocked for key drag action
 									input_report_key(ts->input_dev, KEY_HOME, 1); //seven blocked for key drag action
 									pr_debug("[TOUCH-2] Key Event KEY = %d, PRESS = %d\n", KEY_MENU, 1);
-								//	pressed_button_type = KEY_MENU;
 									pressed_button_type = KEY_HOME;
 								}
 								else
 								{
-								//	if(pressed_button_type != KEY_MENU && pressed_button_type != KEY_REJECT)
 									if(pressed_button_type != KEY_HOME && pressed_button_type != KEY_REJECT)
 									{
 										input_report_key(ts->input_dev, KEY_REJECT, 1);
@@ -793,15 +757,12 @@ do{
 							{
 								if(!prev_ts_data.touch_status[i])
 								{
-								//	input_report_key(ts->input_dev, KEY_HOME, 1); //seven blocked for key drag action
 									input_report_key(ts->input_dev, KEY_MENU, 1); //seven blocked for key drag action
 									pr_debug("[TOUCH-5] Key Event KEY = %d, PRESS = %d\n", KEY_HOME, 1);
-								//	pressed_button_type = KEY_HOME;
 									pressed_button_type = KEY_MENU;
 								}
 								else
 								{
-								//	if(pressed_button_type != KEY_HOME && pressed_button_type != KEY_REJECT)
 									if(pressed_button_type != KEY_MENU && pressed_button_type != KEY_REJECT)
 									{
 										input_report_key(ts->input_dev, KEY_REJECT, 1);
@@ -900,20 +861,17 @@ do{
 								}
 							}
 
-// 20101021 joseph.jung@lge.com lcd-button area touch scenario change [START]
+
 								input_report_abs(ts->input_dev, ABS_MT_POSITION_X, curr_ts_data.X_position[i]);
 								input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, curr_ts_data.Y_position[i]);
 								input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, curr_ts_data.pressure[i]);
 								input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, curr_ts_data.width[i]);
 								
 								input_mt_sync(ts->input_dev);
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [START]
-								sent_event[i] = 1;
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [END]
 								pr_debug("[TOUCH-23] (X, Y) = (%d, %d), z = %d, w = %d\n", curr_ts_data.X_position[i], curr_ts_data.Y_position[i], curr_ts_data.pressure[i], curr_ts_data.width[i]);
 
 								curr_event_type = TOUCH_EVENT_ABS;
-// 20101021 joseph.jung@lge.com lcd-button area touch scenario change [END]
+
 						}
 					}
 					else
@@ -921,7 +879,7 @@ do{
 						curr_event_type = TOUCH_EVENT_NULL;
 						pressed_button_type = KEY_REJECT;
 					}
-					//break; /* 20101231 seven.kim@lge.com do not need any more */
+					//break; 
 				}
 				else // multi-finger
 				{
@@ -947,13 +905,12 @@ do{
 
 						input_mt_sync(ts->input_dev);
 
-						/*20110227 seven.kim@lge.com to remove ghost finger for HW Drop Test [START] */
+						
+#ifdef FEATURE_LGE_TOUCH_GHOST_FINGER_IMPROVE
 						if(curr_ts_data.X_position[1] || curr_ts_data.Y_position[1])
 							ghost_count=0; 
-						/*20110227 seven.kim@lge.com to remove ghost finger for HW Drop Test [START] */
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [START]
-						sent_event[i] = 1;
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [END]
+#endif
+						
 						
 						pr_debug("[TOUCH-27] (X, Y) = (%d, %d), z = %d, w = %d\n", curr_ts_data.X_position[i], curr_ts_data.Y_position[i], curr_ts_data.pressure[i], curr_ts_data.width[i]);
 					}
@@ -964,17 +921,15 @@ do{
 				if(pressed_button_type != KEY_REJECT && i == 0)
 				{					
 					input_report_key(ts->input_dev, pressed_button_type, 0);
-                                        // 20101203 kyungyoon.kim@lge.com, Touch KEY LED [START_LGE]
-					//if (system_rev >= 3)
-					//{
+                                        
+					if (system_rev >= 3)
+					{
 						switch(pressed_button_type)
 						{
 							case KEY_MENU:
-							//	touchkey_pressed(MENU);
 								touchkey_pressed(HOME);
 								break;
 							case KEY_HOME:
-							//	touchkey_pressed(HOME);
 								touchkey_pressed(MENU);
 								break;
 							case KEY_BACK:
@@ -984,32 +939,15 @@ do{
 								touchkey_pressed(SEARCH);
 								break;
 						}
-					//}
-					//else
-					//{
-					//		pr_debug("Touch Key LED is working at over Rev.C\n");
-					//}
-                                        // 20101203 kyungyoon.kim@lge.com, Touch KEY LED [END_LGE]
+					}
+					else
+					{
+							pr_debug("Touch Key LED is working at over Rev.C\n");
+					}
+                                        
 					pr_debug("[TOUCH-28] Key Event KEY = %d, PRESS = %d\n", pressed_button_type, 0);
 					pressed_button_type = KEY_REJECT;
 				}
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [START]
-				if(sent_event[i] == 1)
-				{
-					curr_ts_data.X_position[i] = (int)TS_SNTS_GET_X_POSITION(ts_reg_data.fingers_data[i][0], ts_reg_data.fingers_data[i][2]);
-					curr_ts_data.Y_position[i] = (int)TS_SNTS_GET_Y_POSITION(ts_reg_data.fingers_data[i][1], ts_reg_data.fingers_data[i][2]);
-
-					input_report_abs(ts->input_dev, ABS_MT_POSITION_X, curr_ts_data.X_position[i]);
-					input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, curr_ts_data.Y_position[i]);
-					input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-					input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
-					
-					input_mt_sync(ts->input_dev);
-					sent_event[i] = 0;
-					
-					printk("release touch event \n");
-				}
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [END]				
 			}
 		}
 		
@@ -1023,7 +961,7 @@ do{
 		}
 
 #ifdef FEATURE_LGE_TOUCH_GHOST_FINGER_IMPROVE
-// 20101110 jh.koo@lge.com, check and change mode for remove ghost fingers [START_LGE]
+
 		if(melt_mode == 0) {			
 
 				if(pressed) {
@@ -1046,7 +984,7 @@ do{
 				
 						if(jiffies - pressed_time < 2 * HZ) {
 							ghost_count++;
-							if (ghost_count > 3)
+							if (ghost_count > 0/*3*/) 
 							{
 								synaptics_ts_i2c_write_byte_data(ts->client, MELT_CONTROL, NO_MELT);
 								pr_warning("Touch NO_MELT\n");
@@ -1075,22 +1013,16 @@ do{
 								pressed = 0;
 				}				
 		}						
-// 20101110 jh.koo@lge.com, check and change mode for remove ghost fingers [END_LGE]
+
 #endif
 
 	}
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [START]
-#if 1
-	input_sync(ts->input_dev);
-#else
+
 	input_mt_sync(ts->input_dev);
 	input_sync(ts->input_dev);
-#endif
-//20110501 yongman.kwon@lge.com [LS855] bug fix : sending touch event twice a one time. [END]
 
-/*[START] seven.kim@lge.com To avoid touch sensor lock-up & data missing in touch release*/	
 }while(Synaptics_Check_Touch_Interrupt_Status());
-/*[END] seven.kim@lge.com To avoid touch sensor lock-up & data missing in touch release*/
+
 SYNAPTICS_TS_IDLE:
 	if (ts->use_irq) {		
 		enable_irq(ts->client->irq);
@@ -1110,31 +1042,77 @@ static enum hrtimer_restart synaptics_ts_timer_func(struct hrtimer *timer)
 static irqreturn_t synaptics_ts_irq_handler(int irq, void *dev_id)
 {
 	struct synaptics_ts_data *ts = dev_id;
+#ifdef CONFIG_LGE_DVFS
+	int ds_cpu = smp_processor_id();
+	unsigned long touch_interval;
+#endif// CONFIG_LGE_DVFS
 
 	//pr_info("LGE: synaptics_ts_irq_handler\n");
 	disable_irq_nosync(ts->client->irq);
 
-/* 20110331 sookyoung.kim@lge.com LG-DVFS [START_LGE] */
-/* Move this code later to somewhere common, such as the irq entry point.
- */
-#if 1
-	if(ds_status.flag_run_dvs == 1){
-        ds_status.flag_touch_timeout_count = DS_TOUCH_TIMEOUT_COUNT_MAX;    // = 6
-        if(ds_status.touch_timeout_sec == 0){
-            if(ds_counter.elapsed_usec + DS_TOUCH_TIMEOUT < 1000000){
-                ds_status.touch_timeout_sec = ds_counter.elapsed_sec;
-                ds_status.touch_timeout_usec = ds_counter.elapsed_usec + DS_TOUCH_TIMEOUT;
+	queue_work(synaptics_wq, &ts->work);
+
+#ifdef CONFIG_LGE_DVFS
+	if(ds_control.flag_run_dvs == 1)
+	{
+		if(ds_cpu == 0){
+			if(per_cpu(ds_sys_status, 0).flag_consecutive_touches == 0){
+				if(per_cpu(ds_counter, ds_cpu).elapsed_sec < 
+				   per_cpu(ds_sys_status, 0).new_touch_sec + 2)
+				{
+					touch_interval = (per_cpu(ds_counter, ds_cpu).elapsed_sec -
+							  per_cpu(ds_sys_status, 0).new_touch_sec) * 1000000 +
+						(per_cpu(ds_counter, ds_cpu).elapsed_usec -
+						 per_cpu(ds_sys_status, 0).new_touch_usec);
+					if(touch_interval <= DS_CONT_TOUCH_THRESHOLD_USEC)
+					{
+						if(per_cpu(ds_sys_status, 0).flag_consecutive_touches == 0){
+							per_cpu(ds_sys_status, 0).first_consecutive_touch_sec =
+								per_cpu(ds_counter, ds_cpu).elapsed_sec;
+						}
+						per_cpu(ds_sys_status, 0).flag_consecutive_touches = 1;
             }
-            else{
-                ds_status.touch_timeout_sec = ds_counter.elapsed_sec + 1;
-                ds_status.touch_timeout_usec = (ds_counter.elapsed_usec + DS_TOUCH_TIMEOUT) - 1000000;
             }
         }
+			per_cpu(ds_sys_status, 0).new_touch_sec = 
+				per_cpu(ds_counter, ds_cpu).elapsed_sec;
+			per_cpu(ds_sys_status, 0).new_touch_usec = 
+				per_cpu(ds_counter, ds_cpu).elapsed_usec;
+			
+			if(per_cpu(ds_sys_status, 0).flag_consecutive_touches == 0){
+				per_cpu(ds_sys_status, 0).flag_touch_timeout_count = 
+					DS_TOUCH_CPU_OP_UP_CNT_MAX;
+				if((per_cpu(ds_counter, ds_cpu).elapsed_usec + 
+				    DS_TOUCH_CPU_OP_UP_INTERVAL) < 1000000)
+				{
+					per_cpu(ds_sys_status, 0).touch_timeout_sec = 
+						per_cpu(ds_counter, ds_cpu).elapsed_sec;
+					per_cpu(ds_sys_status, 0).touch_timeout_usec = 
+						per_cpu(ds_counter, ds_cpu).elapsed_usec + 
+						DS_TOUCH_CPU_OP_UP_INTERVAL;
+				}
+				else{
+					per_cpu(ds_sys_status, 0).touch_timeout_sec = 
+						per_cpu(ds_counter, ds_cpu).elapsed_sec + 1;
+					per_cpu(ds_sys_status, 0).touch_timeout_usec = 
+						(per_cpu(ds_counter, ds_cpu).elapsed_usec + 
+						 DS_TOUCH_CPU_OP_UP_INTERVAL) - 1000000;
+				}
     }
-#endif
-/* 20110331 sookyoung.kim@lge.com LG-DVFS [END_LGE] */
 
-	queue_work(synaptics_wq, &ts->work);
+			if(per_cpu(ds_sys_status, 0).flag_consecutive_touches == 1){
+				if(per_cpu(ds_sys_status, 0).flag_long_consecutive_touches == 0){
+					if(per_cpu(ds_counter, ds_cpu).elapsed_sec > 
+					   (per_cpu(ds_sys_status, 0).first_consecutive_touch_sec + 
+					    DS_CONT_TOUCH_CARE_WAIT_SEC))
+					{
+						per_cpu(ds_sys_status, 0).flag_long_consecutive_touches = 1;
+					}
+				}
+			}
+		}
+	}
+#endif// CONFIG_LGE_DVFS
 
 	return IRQ_HANDLED;
 }
@@ -1168,7 +1146,7 @@ static ssize_t hub_ts_FW_show(struct device *dev,  struct device_attribute *attr
 
 }
 
-static DEVICE_ATTR(fw, 0664, hub_ts_FW_show, NULL);
+static DEVICE_ATTR(fw, 0666, hub_ts_FW_show, NULL);
 
 
 
@@ -1509,7 +1487,7 @@ static bool synaptics_ts_fw_upgrade(struct i2c_client *client)
 }
 #endif
 
-#ifdef FEATURE_LGE_TOUCH_ESD_DETECT //20101221 seven.kim@lge.com to detect Register change by ESD
+#ifdef FEATURE_LGE_TOUCH_ESD_DETECT 
 static bool  Synatics_ts_touch_Recovery()
 {
 	//touch power down reset for ESD recovery
@@ -1548,7 +1526,6 @@ static int synaptics_ts_probe(
 	char product_id[6];
 	uint8_t product_id_addr;
 
-
 	if (lcd_off_boot) return -ENODEV;
 	pr_warning("%s() -- start\n\n\n", __func__);
 
@@ -1571,11 +1548,11 @@ static int synaptics_ts_probe(
 	INIT_WORK(&ts->work, synaptics_ts_work_func);
 	INIT_DELAYED_WORK(&ts->init_delayed_work, synaptics_ts_init_delayed_work);
 
-#ifdef FEATURE_LGE_TOUCH_ESD_DETECT //20101221 seven.kim@lge.com to detect Register change by ESD
+#ifdef FEATURE_LGE_TOUCH_ESD_DETECT 
 	wake_lock_init(&ts_wake_lock, WAKE_LOCK_SUSPEND, "ts_upgrade");
 #endif /*FEATURE_LGE_TOUCH_ESD_DETECT*/	
 
-// 20101215 seven.kim@lge.com grip suppression [START]
+
 #ifdef FEATURE_LGE_TOUCH_GRIP_SUPPRESSION
 	ret = device_create_file(&client->dev, &dev_attr_gripsuppression);
 	if (ret) {
@@ -1583,7 +1560,7 @@ static int synaptics_ts_probe(
 		goto err_check_functionality_failed;
 	}
 #endif /* FEATURE_LGE_TOUCH_GRIP_SUPPRESSION */
-// 20101215 seven.kim@lge.com grip suppression [END]
+
 
   	memset(&ts_reg_data, 0x0, sizeof(ts_sensor_data));
 	memset(&prev_ts_data, 0x0, sizeof(ts_finger_data));
@@ -1598,7 +1575,7 @@ static int synaptics_ts_probe(
 	/*************************************************************************************************
 	 * 4. Read RMI Version
 	 * To distinguish T1021 and T1007. Select RMI Version
-	 * TODO: Power?? ?????? ?ϴ? ??��?? ?????ϸ? ��ġ ?????ؾ? ?Ѵ?.
+	 * TODO: Power研 戚穿拭 馬澗 依生稽 痕井馬檎 是帖 痕井背醤 廃陥.
 	 *************************************************************************************************/
 
 	// device check
@@ -1648,8 +1625,6 @@ static int synaptics_ts_probe(
 
 	touch_fw_version=synaptics_ts_check_fwver(hub_ts_client);
 
-	//printk("touch_fw_version : %d\n", touch_fw_version);	
-
 	ts->input_dev = input_allocate_device();
 	if (ts->input_dev == NULL) {
 		ret = -ENOMEM;
@@ -1670,12 +1645,12 @@ static int synaptics_ts_probe(
 	set_bit(KEY_SEARCH, ts->input_dev->keybit);
 	set_bit(KEY_REJECT, ts->input_dev->keybit);
 
-	max_x = SYNAPTICS_PANEL_MAX_X;
+	max_x = SYNAPTICS_PANEL_MAX_X+1;
 	max_y = SYNAPTICS_PANEL_LCD_MAX_Y;
 	max_pressure = 0xFF;
 	max_width = 0x0F;
  
-	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, 0, max_x, 0, 0);
+	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_X, -1, max_x, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_POSITION_Y, 0, max_y, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0, max_pressure, 0, 0);
 	input_set_abs_params(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0, max_width, 0, 0);
@@ -1692,9 +1667,9 @@ static int synaptics_ts_probe(
 
 	pr_debug("########## irq [%d], irqflags[0x%x]\n", client->irq, IRQF_TRIGGER_FALLING);
 	
-	//[START] 20101227 seven.kim@lge.com to prevent interrupt in booting time 
+	
 	synaptics_ts_i2c_write_byte_data(hub_ts_client, SYNAPTICS_RIM_CONTROL_INTERRUPT_ENABLE, 0x00); //interrupt disable
-	//[START] 20101227 seven.kim@lge.com to prevent interrupt in booting time 
+	
 	
 	if (client->irq) {
 		ret = request_irq(client->irq, synaptics_ts_irq_handler, IRQF_TRIGGER_FALLING, client->name, ts);
@@ -1712,27 +1687,26 @@ static int synaptics_ts_probe(
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
 	}
 
-// 20100827 jh.koo@lge.com, for check ts i2c status [START_LGE]
+
 	ret = device_create_file(&client->dev, &dev_attr_fw);
 	if (ret) {
 		pr_debug( "Hub-touch screen : touch screen_probe: Fail\n");
 		device_remove_file(&client->dev, &dev_attr_fw);
 		return ret;
 	}
-// 20100827 jh.koo@lge.com, for check ts i2c status [END_LGE]
 
-// 20100826 jh.koo@lge.com, for stable initialization [START_LGE]
+
+
 	schedule_delayed_work(&ts->init_delayed_work, msecs_to_jiffies(200/*500*/));	
-// 20100826 jh.koo@lge.com, for stable initialization [END_LGE]
+
 	
-	/* 20110216 seven.kim@lge.com to follow android sleep/resume flow [START] */
+	
 //	atomic_set( &g_synaptics_ts_resume_flag, 0 );
 //	atomic_set( &g_synaptics_ts_suspend_flag, 0 );
-	/* 20110216 seven.kim@lge.com to follow android sleep/resume flow [END] */	
 	
-#ifdef CONFIG_HAS_EARLYSUSPEND /*20110214 to follow Android Resume flow for LCD */
-	//ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
-	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN - 1;
+	
+#ifdef CONFIG_HAS_EARLYSUSPEND 
+	ts->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
 	ts->early_suspend.suspend = synaptics_ts_early_suspend;
 	ts->early_suspend.resume = synaptics_ts_late_resume;
 	register_early_suspend(&ts->early_suspend);
@@ -1752,22 +1726,22 @@ err_check_functionality_failed:
 	return ret;
 }
 
-/*20110310 seven.kim@lge.com to prevent IRQ during soft reset [START] */
+
 void synaptics_ts_disable_irq()
 {
 	if (lcd_off_boot == 0) 
 	      disable_irq(hub_ts_client->irq);
 }
 EXPORT_SYMBOL(synaptics_ts_disable_irq);
-/*20110310 seven.kim@lge.com to prevent IRQ during soft reset [START] */
+
 
 static int synaptics_ts_remove(struct i2c_client *client)
 {
 	struct synaptics_ts_data *ts = i2c_get_clientdata(client);
 
-#ifdef FEATURE_LGE_TOUCH_GRIP_SUPPRESSION	//20101216 seven.kim@lge.com [start]
+#ifdef FEATURE_LGE_TOUCH_GRIP_SUPPRESSION	
 	device_remove_file(&client->dev, &dev_attr_gripsuppression);
-#endif //20101216 seven.kim@lge.com [end]
+#endif 
 
 	unregister_early_suspend(&ts->early_suspend);
 	if (ts->use_irq)
@@ -1791,12 +1765,12 @@ static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	else
 		hrtimer_cancel(&ts->timer);
 	
-	ret = cancel_work_sync(&ts->init_delayed_work); //seven.kim@lge.com sunggyun.ryu recommand
+	ret = cancel_work_sync(&ts->init_delayed_work); 
 	ret = cancel_work_sync(&ts->work);
 	if (ret && ts->use_irq) /* if work was pending disable-count is now 2 */
 		enable_irq(client->irq);
 
-#if 0 //20110222 seven.kim@lge.com blocked to prevent i2c error 
+#if 0 
 	    ret = synaptics_ts_i2c_write_byte_data(ts->client, SYNAPTICS_CONTROL_REG, SYNAPTICS_CONTROL_SLEEP); /* sleep */
 	    if (ret < 0)
 		pr_err("synaptics_ts_suspend: synaptics_ts_i2c_write_byte_data failed\n");
@@ -1807,7 +1781,7 @@ static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 	    ghost_finger_1 = 0;
 	    ghost_finger_2 = 0;
 	    pressed = 0;    
-	    ghost_count=0; //20110227 seven.kim@lge.com to prevent ghost finger for HW drop test
+	    ghost_count=0; 
 #endif
 		
 	return 0;
@@ -1827,12 +1801,12 @@ static int synaptics_ts_resume(struct i2c_client *client)
 	if (!ts->use_irq)
 		hrtimer_start(&ts->timer, ktime_set(1, 0), HRTIMER_MODE_REL);
 
-// 20100826 jh.koo@lge.com, for stable initialization [START_LGE]
-	    schedule_delayed_work(&ts->init_delayed_work, msecs_to_jiffies(400));
-// 20100826 jh.koo@lge.com, for stable initialization [END_LGE]
-  	    memset(&ts_reg_data, 0x0, sizeof(ts_sensor_data));
-	    memset(&prev_ts_data, 0x0, sizeof(ts_finger_data));
-  	    memset(&curr_ts_data, 0x0, sizeof(ts_finger_data));	
+
+	schedule_delayed_work(&ts->init_delayed_work, msecs_to_jiffies(400));
+
+	memset(&ts_reg_data, 0x0, sizeof(ts_sensor_data));
+	memset(&prev_ts_data, 0x0, sizeof(ts_finger_data));
+	memset(&curr_ts_data, 0x0, sizeof(ts_finger_data));	
 	
 	return 0;
 }
@@ -1842,30 +1816,6 @@ static void synaptics_ts_early_suspend(struct early_suspend *h)
 {
 	struct synaptics_ts_data *ts;
 	ts = container_of(h, struct synaptics_ts_data, early_suspend);
-
-
-//20110516 yongman.kwon@lge.com [LS855] Write description here in detail [START]
-
-	{
-		int i;
-		for(i = 0; i < SYNAPTICS_FINGER_MAX; i++)
-		{
-			if(sent_event[i] == 1)
-			{
-				curr_ts_data.X_position[i] = (int)TS_SNTS_GET_X_POSITION(ts_reg_data.fingers_data[i][0], ts_reg_data.fingers_data[i][2]);
-				curr_ts_data.Y_position[i] = (int)TS_SNTS_GET_Y_POSITION(ts_reg_data.fingers_data[i][1], ts_reg_data.fingers_data[i][2]);
-				
-				input_report_abs(ts->input_dev, ABS_MT_POSITION_X, curr_ts_data.X_position[i]);
-				input_report_abs(ts->input_dev, ABS_MT_POSITION_Y, curr_ts_data.Y_position[i]);
-				input_report_abs(ts->input_dev, ABS_MT_TOUCH_MAJOR, 0);
-				input_report_abs(ts->input_dev, ABS_MT_WIDTH_MAJOR, 0);
-				
-				input_mt_sync(ts->input_dev);
-				sent_event[i] = 0;
-			}
-		}	
-	}
-//20110516 yongman.kwon@lge.com [LS855] Write description here in detail [END]
 	
 	synaptics_ts_suspend(ts->client, PMSG_SUSPEND);
 		
@@ -1904,7 +1854,7 @@ static struct i2c_driver synaptics_ts_driver = {
 
 static int __devinit synaptics_ts_init(void)
 {
-#ifdef FEATURE_LGE_TOUCH_REAL_TIME_WORK_QUEUE	//20101221 seven.kim@lge.com to use real time work queue
+#ifdef FEATURE_LGE_TOUCH_REAL_TIME_WORK_QUEUE	
 	synaptics_wq = create_rt_workqueue("synaptics_wq");
 #else
 	synaptics_wq = create_singlethread_workqueue("synaptics_wq");
