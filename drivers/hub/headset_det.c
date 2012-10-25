@@ -15,7 +15,7 @@
 #include <linux/wakelock.h>   //20110618 minyoung1.kim@lge.com 
 
 #include <linux/earlysuspend.h>	// 20100603 junyeop.kim@lge.com, headset suspend/resume [START_LGE]
-#ifdef CONFIG_LGE_LAB3_BOARD    //20110201 jungsoo1221.lee  [LGE_US850_HEADSET_START]
+#ifdef CONFIG_LGE_LAB3_BOARD    //20110201 jungsoo1221.lee  [LGE_US850_HEADSET_START]
 #include <linux/irq.h> //20110201 jungsoo1221.lee  [LGE_US850_HEADSET]
 
 #define DEBUG_H2W
